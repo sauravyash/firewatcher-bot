@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs (or updates) firewatcher-bot on a Debian/Ubuntu VM.
-# Run from the unpacked app folder:   sudo bash deploy/setup.sh
+# Run from the cloned repo folder:    sudo bash deploy/setup.sh
 # Optional Cloudflare Tunnel:         sudo CLOUDFLARE_TUNNEL_TOKEN=... bash deploy/setup.sh
 # Safe to re-run: keeps the existing .env and database, replaces the code, restarts the bot.
 set -euo pipefail

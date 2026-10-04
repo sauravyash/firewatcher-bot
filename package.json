@@ -10,8 +10,7 @@
   },
   "scripts": {
     "start": "node --env-file=.env src/index.js",
-    "check": "node --check src/index.js && node --check src/config.js && node --check src/db.js && node --check src/eve.js && node --check src/verifier.js && node --check src/web.js && node --check src/commands.js",
-    "bundle": "tar -czf firewatcher-bot.tar.gz src deploy package.json package-lock.json .env.example"
+    "check": "node --check src/index.js && node --check src/config.js && node --check src/db.js && node --check src/eve.js && node --check src/verifier.js && node --check src/web.js && node --check src/commands.js"
   },
   "dependencies": {
     "discord.js": "^14.16.0",

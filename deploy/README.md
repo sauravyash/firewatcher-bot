@@ -46,22 +46,18 @@ Cloudflare dashboard → **Zero Trust → Networks → Tunnels → Create a tunn
 Then, in the [EVE developer portal](https://developers.eveonline.com/applications), set your app's
 callback URL to `https://firewatcher-bot.yaa.sh/callback`.
 
-## 3. Upload and install
+## 3. Clone and install
 
-On your PC, in the project folder:
-
-```bash
-npm run bundle
-```
-
-This creates `firewatcher-bot.tar.gz` (your `.env` is deliberately left out). In the Cloud Console,
-click **SSH** next to the VM, use **Upload file** (top right), and upload `firewatcher-bot.tar.gz`.
-Then, in that SSH window:
+In the Cloud Console, click **SSH** next to the VM. In that window, install git and clone the repo:
 
 ```bash
-mkdir -p firewatcher-bot && tar -xzf firewatcher-bot.tar.gz -C firewatcher-bot && cd firewatcher-bot
+sudo apt-get update && sudo apt-get install -y git
+git clone https://github.com/sauravyash/firewatcher-bot.git
+cd firewatcher-bot
 sudo CLOUDFLARE_TUNNEL_TOKEN=paste-your-token-here bash deploy/setup.sh
 ```
+
+The repo never contains your `.env`, so the first run creates a blank one from `.env.example`.
 
 Fill in the config. Use `EVE_CALLBACK_URL=https://firewatcher-bot.yaa.sh/callback` and keep
 `WEB_PORT=8080`:
@@ -81,10 +77,10 @@ You should see `Logged in as firewatcher-bot#…` and `SSO callback listening on
 
 ## Updating
 
-Run `npm run bundle` again, upload the new tarball, then on the VM:
+Push your changes to GitHub, then on the VM:
 
 ```bash
-rm -rf firewatcher-bot && mkdir firewatcher-bot && tar -xzf firewatcher-bot.tar.gz -C firewatcher-bot && sudo bash firewatcher-bot/deploy/setup.sh
+cd ~/firewatcher-bot && git pull && sudo bash deploy/setup.sh
 ```
 
 Your `.env` and the database (`/opt/firewatcher-bot/firewatcher-bot.db`) are kept.

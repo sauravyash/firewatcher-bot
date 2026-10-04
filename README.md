@@ -18,6 +18,20 @@ The main sets their server nickname, and their roles come from their characters'
 The bot stores no refresh tokens. Each SSO login is used once, to prove identity, and then
 discarded.
 
+## Roles
+
+| Setting | Given to |
+|---|---|
+| `VERIFIED_ROLE_ID` | Anyone with at least one linked character |
+| `CORP_MEMBER_ROLE_ID` (optional) | Members with a character in `ALLOWED_CORPORATIONS` or `ALLOWED_ALLIANCES` |
+| `AMARR_MILITIA_ROLE_ID` (optional) | Members with a character whose corp is enlisted with the **Amarr or Caldari** militia |
+| `GALLENTE_MILITIA_ROLE_ID` (optional) | Members with a character whose corp is enlisted with the **Gallente or Minmatar** militia |
+
+Militia roles are separate from the corp member role, so a member can hold both, and allied
+FW pilots outside your corp get a militia role too. Militia membership comes from the
+corporation's public `faction_id` in ESI. That includes the NPC militia corps solo pilots join,
+like 24th Imperial Crusade or Federal Defense Union. No extra EVE permissions are needed.
+
 ## Commands
 
 | Command | Who | What |
@@ -40,7 +54,8 @@ discarded.
   if needed).
 - **Role sources.** With `ROLES_FROM=any`, a member qualifies if *any* of their characters is in
   an allowed corp or alliance. This covers the common "my main is in an NPC corp, my alt is in
-  ours" case. With `ROLES_FROM=main`, only the main counts.
+  ours" case. With `ROLES_FROM=main`, only the main counts. This applies to the militia roles
+  too: with `any`, someone with alts in both militias gets both roles. Use `/whois` to spot that.
 - **Alts on another EVE account.** The SSO page remembers the last account used. To link an alt
   on a different account, log out on the SSO page first or use a private window.
 
@@ -62,7 +77,7 @@ discarded.
    ```
 
 The callback server must be reachable from the member's browser. `localhost` works while you
-test it yourself. For real use, see [deploy/README.md](deploy/README.md) to host it for free on
-Google Cloud behind a Cloudflare Tunnel.
+test it yourself. For real use, see [deploy/README.md](deploy/README.md) to run it in an LXC
+container (or any Debian/Ubuntu machine) behind a Cloudflare Tunnel.
 
 Requires Node 22.13+ (it uses the built-in `node:sqlite`).

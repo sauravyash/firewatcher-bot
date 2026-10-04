@@ -1,34 +1,19 @@
-# Deploying firewatcher-bot on Google Cloud (free tier)
+# Deploying firewatcher-bot in an LXC container
 
-This runs the bot on Google Cloud's free **e2-micro** server, with a **Cloudflare Tunnel**
-giving the EVE login callback a fixed HTTPS address. The tunnel means no firewall ports need
-opening and no static IP is needed.
+This runs the bot as a systemd service in a Debian/Ubuntu LXC container (e.g. on Proxmox), with a
+**Cloudflare Tunnel** giving the EVE login callback a public HTTPS address at
+`https://firewatcher-bot.yaa.sh/callback`. The tunnel connects outward from the container, so you
+don't need to open ports on your router or have a static IP.
 
-You need:
-- A Google Cloud account with billing enabled (a card is required, but the e2-micro is free)
-- A domain on Cloudflare (free plan is fine) for the callback URL, here `firewatcher-bot.yaa.sh`
+The same steps work on any Debian/Ubuntu machine or VM with systemd.
 
-## 1. Create the server
+## 1. Create the container
 
-Google Cloud Console → **Compute Engine → VM instances → Create instance**:
+A small container is plenty: **1 CPU, 512 MB RAM, 4 GB disk**, from a **Debian 12** (or Ubuntu 24.04)
+template. Give it normal outbound internet access; it needs no inbound ports.
 
-| Setting | Value | Why |
-|---|---|---|
-| Region | `us-central1`, `us-west1`, or `us-east1` | Free tier only covers these |
-| Machine type | **e2-micro** | The free one |
-| Boot disk → OS | Debian 12 | |
-| Boot disk → type | **Standard persistent disk**, 30 GB | The default "Balanced" disk is **not** free |
-| Firewall | leave HTTP/HTTPS unchecked | The tunnel doesn't need them |
-
-Or with `gcloud`:
-
-```bash
-gcloud compute instances create firewatcher-bot --zone=us-central1-a --machine-type=e2-micro --image-family=debian-12 --image-project=debian-cloud --boot-disk-size=30GB --boot-disk-type=pd-standard
-```
-
-> **Set a budget alert** (Billing → Budgets & alerts, e.g. $1) so you hear about any surprise charge.
-> Google has charged for external IPv4 addresses since 2024; check your first billing report to
-> confirm what applies to your account.
+> **Proxmox:** leave the container *unprivileged* and make sure **Options → Features → nesting** is
+> on (the default for new containers). The service uses systemd sandboxing, which needs nesting.
 
 ## 2. Create the Cloudflare Tunnel
 
@@ -48,23 +33,23 @@ callback URL to `https://firewatcher-bot.yaa.sh/callback`.
 
 ## 3. Clone and install
 
-In the Cloud Console, click **SSH** next to the VM. In that window, install git and clone the repo:
+Open a shell in the container as root (Proxmox: select the container → **Console**, or
+`pct enter <id>` on the host) and run:
 
 ```bash
-sudo apt-get update && sudo apt-get install -y git
+apt-get update && apt-get install -y git
 git clone https://github.com/sauravyash/firewatcher-bot.git
 cd firewatcher-bot
-sudo CLOUDFLARE_TUNNEL_TOKEN=paste-your-token-here bash deploy/setup.sh
+CLOUDFLARE_TUNNEL_TOKEN=paste-your-token-here bash deploy/setup.sh
 ```
 
 The repo never contains your `.env`, so the first run creates a blank one from `.env.example`.
-
-Fill in the config. Use `EVE_CALLBACK_URL=https://firewatcher-bot.yaa.sh/callback` and keep
+Fill it in. Use `EVE_CALLBACK_URL=https://firewatcher-bot.yaa.sh/callback` and keep
 `WEB_PORT=8080`:
 
 ```bash
-sudo nano /opt/firewatcher-bot/.env
-sudo systemctl restart firewatcher-bot
+nano /opt/firewatcher-bot/.env
+systemctl restart firewatcher-bot
 ```
 
 Check that it's running:
@@ -73,23 +58,33 @@ Check that it's running:
 journalctl -u firewatcher-bot -f
 ```
 
-You should see `Logged in as firewatcher-bot#…` and `SSO callback listening on :8080/callback`.
+You should see `Logged in as …` and `SSO callback listening on :8080/callback`. Opening
+`https://firewatcher-bot.yaa.sh/callback` in a browser should show "Missing login parameters.",
+which means the tunnel reaches the bot.
 
 ## Updating
 
-Push your changes to GitHub, then on the VM:
+Push your changes to GitHub, then in the container:
 
 ```bash
-cd ~/firewatcher-bot && git pull && sudo bash deploy/setup.sh
+cd ~/firewatcher-bot && git pull && bash deploy/setup.sh
 ```
 
 Your `.env` and the database (`/opt/firewatcher-bot/firewatcher-bot.db`) are kept.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Service fails with `status=226/NAMESPACE` | The container can't do systemd sandboxing. Turn on **nesting** for the container (Proxmox: Options → Features), or delete the `ProtectSystem`, `ProtectHome` and `PrivateTmp` lines from `/etc/systemd/system/firewatcher-bot.service` and run `systemctl daemon-reload && systemctl restart firewatcher-bot`. |
+| Callback URL shows a Cloudflare error page | Check `systemctl status cloudflared` and that the tunnel's public hostname points to `HTTP` → `localhost:8080`. |
+| `Missing required environment variable` in the logs | Fill in that value in `/opt/firewatcher-bot/.env`, then restart. |
 
 ## Useful commands
 
 | | |
 |---|---|
 | Logs | `journalctl -u firewatcher-bot -f` |
-| Restart | `sudo systemctl restart firewatcher-bot` |
+| Restart | `systemctl restart firewatcher-bot` |
 | Status | `systemctl status firewatcher-bot cloudflared` |
-| Back up the database | `sudo cp /opt/firewatcher-bot/firewatcher-bot.db ~/firewatcher-bot-backup.db` |
+| Back up the database | `cp /opt/firewatcher-bot/firewatcher-bot.db ~/firewatcher-bot-backup.db` |

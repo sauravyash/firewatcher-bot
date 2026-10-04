@@ -12,7 +12,7 @@ export class EveClient {
     this.clientSecret = clientSecret;
     this.callbackUrl = callbackUrl;
     this.userAgent = `firewatcher-bot (${contactEmail})`;
-    this.tickers = new Map();
+    this.infoCache = new Map();
   }
 
   authorizeUrl(state) {
@@ -77,14 +77,24 @@ export class EveClient {
     return result;
   }
 
-  /** kind is "corporations" or "alliances". */
-  async ticker(kind, id) {
-    if (!id) return '';
+  /** Public corp/alliance info, cached until clearCache(). kind is "corporations" or "alliances". */
+  async info(kind, id) {
     const key = `${kind}:${id}`;
-    if (!this.tickers.has(key)) {
-      const { ticker } = await this.esi(`/${kind}/${id}/`);
-      this.tickers.set(key, ticker);
-    }
-    return this.tickers.get(key);
+    if (!this.infoCache.has(key)) this.infoCache.set(key, await this.esi(`/${kind}/${id}/`));
+    return this.infoCache.get(key);
+  }
+
+  /** Corps can rename, change ticker, or enlist/leave militia, so the periodic sync refetches. */
+  clearCache() {
+    this.infoCache.clear();
+  }
+
+  async ticker(kind, id) {
+    return id ? (await this.info(kind, id)).ticker : '';
+  }
+
+  /** The faction warfare faction a corp is enlisted with (including NPC militia corps), or null. */
+  async militiaFaction(corporationId) {
+    return corporationId ? ((await this.info('corporations', corporationId)).faction_id ?? null) : null;
   }
 }

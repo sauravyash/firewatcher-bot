@@ -80,8 +80,14 @@ export class Verifier {
     const roleSource = this.config.rolesFrom === 'main' ? chars.slice(0, 1) : chars;
 
     const wanted = new Map([[this.config.verifiedRoleId, chars.length > 0]]);
-    if (this.config.memberRoleId) {
-      wanted.set(this.config.memberRoleId, roleSource.some((c) => this.isAllowed(c)));
+    if (this.config.corpMemberRoleId) {
+      wanted.set(this.config.corpMemberRoleId, roleSource.some((c) => this.isAllowed(c)));
+    }
+    if (this.config.militiaRoles.length) {
+      const factions = await Promise.all(roleSource.map((c) => this.eve.militiaFaction(c.corporation_id)));
+      for (const { roleId, factions: side } of this.config.militiaRoles) {
+        wanted.set(roleId, factions.some((f) => side.has(f)));
+      }
     }
     const add = [...wanted].filter(([id, on]) => on && !member.roles.cache.has(id)).map(([id]) => id);
     const remove = [...wanted].filter(([id, on]) => !on && member.roles.cache.has(id)).map(([id]) => id);
@@ -97,6 +103,7 @@ export class Verifier {
 
   /** Refreshes every character's corp/alliance from ESI and re-syncs every linked member. */
   async syncAll() {
+    this.eve.clearCache();
     const chars = this.store.allCharacters();
     if (chars.length) {
       const affiliations = await this.eve.affiliations(chars.map((c) => c.character_id));

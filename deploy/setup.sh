@@ -1,20 +1,25 @@
 #!/usr/bin/env bash
-# Installs (or updates) firewatcher-bot on a Debian/Ubuntu VM.
-# Run from the cloned repo folder:    sudo bash deploy/setup.sh
-# Optional Cloudflare Tunnel:         sudo CLOUDFLARE_TUNNEL_TOKEN=... bash deploy/setup.sh
+# Installs (or updates) firewatcher-bot on a Debian/Ubuntu machine, VM, or LXC container.
+# Run as root from the cloned repo folder:  bash deploy/setup.sh
+# Optional Cloudflare Tunnel:               CLOUDFLARE_TUNNEL_TOKEN=... bash deploy/setup.sh
+# (Not root? Prefix either command with sudo.)
 # Safe to re-run: keeps the existing .env and database, replaces the code, restarts the bot.
 set -euo pipefail
 
 APP_DIR=/opt/firewatcher-bot
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-[[ $EUID -eq 0 ]] || { echo "Run with sudo." >&2; exit 1; }
+[[ $EUID -eq 0 ]] || { echo "Run as root (or with sudo)." >&2; exit 1; }
+
+# Minimal container images often lack these.
+if ! command -v curl >/dev/null; then
+  apt-get update
+  apt-get install -y curl ca-certificates
+fi
 
 # Node 22.13+ is needed for the built-in node:sqlite module.
 if ! command -v node >/dev/null || [[ $(node -p 'process.versions.node.split(".")[0]') -lt 22 ]]; then
   echo "==> Installing Node.js 24"
-  apt-get update
-  apt-get install -y curl ca-certificates
   curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
   apt-get install -y nodejs
 fi
@@ -56,7 +61,7 @@ fi
 if [[ -n "${NEEDS_CONFIG:-}" ]]; then
   echo
   echo "!! No .env was provided. Fill in $APP_DIR/.env, then run:"
-  echo "   sudo systemctl restart firewatcher-bot"
+  echo "   systemctl restart firewatcher-bot"
   exit 0
 fi
 

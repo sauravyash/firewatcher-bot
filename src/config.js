@@ -14,6 +14,16 @@ function idSet(name) {
   );
 }
 
+// EVE faction ids. Faction warfare pairs them into two warzone sides.
+const CALDARI_STATE = 500001;
+const MINMATAR_REPUBLIC = 500002;
+const AMARR_EMPIRE = 500003;
+const GALLENTE_FEDERATION = 500004;
+
+if (process.env.MEMBER_ROLE_ID && !process.env.CORP_MEMBER_ROLE_ID) {
+  throw new Error('MEMBER_ROLE_ID was renamed to CORP_MEMBER_ROLE_ID; update your .env');
+}
+
 export const config = {
   discordToken: required('DISCORD_TOKEN'),
   guildId: required('GUILD_ID'),
@@ -21,10 +31,16 @@ export const config = {
   // Given to anyone with at least one linked character.
   verifiedRoleId: required('VERIFIED_ROLE_ID'),
   // Optional: given only if a character is in an allowed corp/alliance.
-  memberRoleId: process.env.MEMBER_ROLE_ID || null,
+  corpMemberRoleId: process.env.CORP_MEMBER_ROLE_ID || null,
   allowedCorporations: idSet('ALLOWED_CORPORATIONS'),
   allowedAlliances: idSet('ALLOWED_ALLIANCES'),
-  // "any": member role if ANY linked character qualifies. "main": only the main counts.
+  // Optional faction warfare roles: given if a character's corp is enlisted with that side's militia.
+  // Independent of the corp member role, so allies and other FW pilots get them too.
+  militiaRoles: [
+    { roleId: process.env.AMARR_MILITIA_ROLE_ID, factions: new Set([AMARR_EMPIRE, CALDARI_STATE]) },
+    { roleId: process.env.GALLENTE_MILITIA_ROLE_ID, factions: new Set([GALLENTE_FEDERATION, MINMATAR_REPUBLIC]) },
+  ].filter((r) => r.roleId),
+  // "any": a role applies if ANY linked character qualifies. "main": only the main counts.
   rolesFrom: process.env.ROLES_FROM === 'main' ? 'main' : 'any',
 
   setNicknames: process.env.SET_NICKNAMES !== 'false',

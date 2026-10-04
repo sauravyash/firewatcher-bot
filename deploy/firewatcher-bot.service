@@ -1,0 +1,22 @@
+[Unit]
+Description=firewatcher-bot Discord bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=firewatcher-bot
+WorkingDirectory=/opt/firewatcher-bot
+ExecStart=/usr/bin/node --env-file=.env src/index.js
+Restart=always
+RestartSec=10
+
+# Hardening: the bot only needs to write its own folder (for the SQLite database).
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/firewatcher-bot
+
+[Install]
+WantedBy=multi-user.target

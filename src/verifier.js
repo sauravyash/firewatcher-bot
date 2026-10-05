@@ -135,7 +135,7 @@ export class Verifier {
       want(rule.roleId, roleSource.some((c) => this.matchesCorpRole(rule, c)));
     }
     if (guildConfig.militiaRoles.length) {
-      const factions = await Promise.all(roleSource.map((c) => this.eve.militiaFaction(c.corporation_id)));
+      const factions = await Promise.all(roleSource.map((c) => this.eve.militiaFaction(c)));
       for (const { roleId, factions: side } of guildConfig.militiaRoles) {
         want(roleId, factions.some((f) => side.has(f)));
       }

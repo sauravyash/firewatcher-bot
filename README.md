@@ -73,9 +73,10 @@ removed when a member no longer qualifies. The bot syncs everyone at startup, so
 existing members right away.
 
 Militia roles are separate from the corp roles, so a member can hold both, and allied FW pilots
-outside your corp get a militia role too. Militia membership comes from the corporation's public
-`faction_id` in ESI. That includes the NPC militia corps solo pilots join, like 24th Imperial
-Crusade or Federal Defense Union. No extra EVE permissions are needed.
+outside your corp get a militia role too. Militia membership comes from the character's public
+`faction_id` in ESI, so pilots who enlist on their own inside a player corp count. If the character
+has none, the corp's `faction_id` is used (enlisted corps and NPC militia corps like 24th Imperial
+Crusade or Federal Defense Union). No extra EVE permissions are needed.
 
 **Single server without a file:** leave `GUILDS_FILE` empty and set `GUILD_ID`, `VERIFIED_ROLE_ID`
 and the other role variables in `.env` instead (see [.env.example](.env.example)). `allianceRoles`

@@ -1,0 +1,33 @@
+{
+  "guildId": "123456789012345678",
+
+  "roles": {
+    "verified": "123456789012345678",
+    "corpMember": null,
+
+    "amarrMilitia": null,
+    "gallenteMilitia": null,
+
+    "amarr": null,
+    "caldari": null,
+    "gallente": null,
+    "minmatar": null
+  },
+
+  "rolesFrom": "any",
+
+  "allowedCorporations": [
+    { "name": "Example Corp", "id": 98000001 }
+  ],
+  "allowedAlliances": [],
+
+  "allianceRoles": [
+    { "name": "Example Alliance", "allianceId": 99000001, "roleId": "123456789012345678" },
+    { "name": "Friendly Alliance (shares the role above)", "allianceId": 99000002, "roleId": "123456789012345678" }
+  ],
+
+  "nicknames": {
+    "enabled": true,
+    "format": "[{corp}] {name}"
+  }
+}

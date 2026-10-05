@@ -15,9 +15,12 @@ const deps = { store, eve, verifier, config };
 
 client.once(Events.ClientReady, async (c) => {
   console.log(`Logged in as ${c.user.tag}`);
-  const guild = await c.guilds.fetch(config.guildId);
+  const guild = await c.guilds.fetch(verifier.settings.guildId);
   await guild.commands.set(commandData); // guild-scoped commands show up instantly
   startWebServer(deps);
+
+  // Sync once at startup so role changes in settings.json reach every linked member without waiting.
+  verifier.syncAll().catch((err) => console.error('Startup sync failed:', err));
 
   setInterval(() => verifier.syncAll().catch((err) => console.error('Periodic sync failed:', err)), config.syncMinutes * 60_000);
 });

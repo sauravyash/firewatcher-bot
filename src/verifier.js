@@ -1,3 +1,5 @@
+import { loadSettings } from './settings.js';
+
 const UNKNOWN_MEMBER = 10007;
 const NICK_MAX = 32; // Discord's limit; EVE names can be up to 37 characters
 
@@ -10,6 +12,20 @@ export class Verifier {
     this.store = store;
     this.eve = eve;
     this.config = config;
+    // Fails fast at startup; later reloads keep the last good settings if the file has a mistake.
+    this.settings = loadSettings(config.settingsFile);
+  }
+
+  reloadSettings() {
+    try {
+      const next = loadSettings(this.config.settingsFile);
+      if (next.guildId !== this.settings.guildId) {
+        throw new Error('guildId changed. Restart the bot to switch servers.');
+      }
+      this.settings = next;
+    } catch (err) {
+      console.error(`Keeping the previous settings: ${err.message}`);
+    }
   }
 
   async linkCharacter(discordId, login) {
@@ -47,7 +63,7 @@ export class Verifier {
   }
 
   isAllowed(character) {
-    const { allowedCorporations, allowedAlliances } = this.config;
+    const { allowedCorporations, allowedAlliances } = this.settings;
     if (allowedCorporations.size === 0 && allowedAlliances.size === 0) return true;
     return allowedCorporations.has(character.corporation_id) || allowedAlliances.has(character.alliance_id);
   }
@@ -55,7 +71,7 @@ export class Verifier {
   async nicknameFor(main) {
     const corp = await this.eve.ticker('corporations', main.corporation_id);
     const alliance = await this.eve.ticker('alliances', main.alliance_id);
-    const nick = this.config.nickFormat
+    const nick = this.settings.nickFormat
       .replaceAll('{corp}', corp)
       .replaceAll('{alliance}', alliance)
       .replaceAll('{name}', main.name)
@@ -66,7 +82,7 @@ export class Verifier {
 
   /** Makes a member's roles and nickname match their linked characters. */
   async syncMember(discordId) {
-    const guild = await this.client.guilds.fetch(this.config.guildId);
+    const guild = await this.client.guilds.fetch(this.settings.guildId);
     let member;
     try {
       member = await guild.members.fetch(discordId);
@@ -77,17 +93,23 @@ export class Verifier {
 
     const chars = this.store.charactersFor(discordId);
     const main = chars[0];
-    const roleSource = this.config.rolesFrom === 'main' ? chars.slice(0, 1) : chars;
+    const roleSource = this.settings.rolesFrom === 'main' ? chars.slice(0, 1) : chars;
 
-    const wanted = new Map([[this.config.verifiedRoleId, chars.length > 0]]);
-    if (this.config.corpMemberRoleId) {
-      wanted.set(this.config.corpMemberRoleId, roleSource.some((c) => this.isAllowed(c)));
+    // Several rules may point at the same role; the member gets it if any of them match.
+    const wanted = new Map();
+    const want = (roleId, on) => wanted.set(roleId, wanted.get(roleId) || on);
+    want(this.settings.verifiedRoleId, chars.length > 0);
+    if (this.settings.corpMemberRoleId) {
+      want(this.settings.corpMemberRoleId, roleSource.some((c) => this.isAllowed(c)));
     }
-    if (this.config.militiaRoles.length) {
+    if (this.settings.militiaRoles.length) {
       const factions = await Promise.all(roleSource.map((c) => this.eve.militiaFaction(c.corporation_id)));
-      for (const { roleId, factions: side } of this.config.militiaRoles) {
-        wanted.set(roleId, factions.some((f) => side.has(f)));
+      for (const { roleId, factions: side } of this.settings.militiaRoles) {
+        want(roleId, factions.some((f) => side.has(f)));
       }
+    }
+    for (const { roleId, allianceId } of this.settings.allianceRoles) {
+      want(roleId, roleSource.some((c) => c.alliance_id === allianceId));
     }
     const add = [...wanted].filter(([id, on]) => on && !member.roles.cache.has(id)).map(([id]) => id);
     const remove = [...wanted].filter(([id, on]) => !on && member.roles.cache.has(id)).map(([id]) => id);
@@ -95,14 +117,15 @@ export class Verifier {
     if (remove.length) await member.roles.remove(remove, 'EVE verification');
 
     // `manageable` is false for the server owner and anyone above the bot's highest role.
-    if (this.config.setNicknames && member.manageable) {
+    if (this.settings.setNicknames && member.manageable) {
       const nick = main ? await this.nicknameFor(main) : null;
       if (member.nickname !== nick) await member.setNickname(nick, 'EVE verification');
     }
   }
 
-  /** Refreshes every character's corp/alliance from ESI and re-syncs every linked member. */
+  /** Reloads settings.json, refreshes every character's corp/alliance from ESI and re-syncs every linked member. */
   async syncAll() {
+    this.reloadSettings();
     this.eve.clearCache();
     const chars = this.store.allCharacters();
     if (chars.length) {

@@ -4,48 +4,19 @@ function required(name) {
   return value;
 }
 
-function idSet(name) {
-  return new Set(
-    (process.env[name] ?? '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map(Number),
-  );
+// Server ids and roles moved from .env to settings.json; catch old setups instead of silently ignoring them.
+const MOVED = [
+  'GUILD_ID', 'VERIFIED_ROLE_ID', 'CORP_MEMBER_ROLE_ID', 'MEMBER_ROLE_ID', 'ALLOWED_CORPORATIONS', 'ALLOWED_ALLIANCES',
+  'AMARR_MILITIA_ROLE_ID', 'GALLENTE_MILITIA_ROLE_ID', 'ROLES_FROM', 'SET_NICKNAMES', 'NICK_FORMAT',
+].filter((name) => process.env[name]);
+if (MOVED.length) {
+  throw new Error(`${MOVED.join(', ')} moved from .env to settings.json (see settings.example.json); remove them from .env`);
 }
 
-// EVE faction ids. Faction warfare pairs them into two warzone sides.
-const CALDARI_STATE = 500001;
-const MINMATAR_REPUBLIC = 500002;
-const AMARR_EMPIRE = 500003;
-const GALLENTE_FEDERATION = 500004;
-
-if (process.env.MEMBER_ROLE_ID && !process.env.CORP_MEMBER_ROLE_ID) {
-  throw new Error('MEMBER_ROLE_ID was renamed to CORP_MEMBER_ROLE_ID; update your .env');
-}
-
+/** Secrets and runtime options. Server ids and roles live in settings.json (see settings.js). */
 export const config = {
   discordToken: required('DISCORD_TOKEN'),
-  guildId: required('GUILD_ID'),
-
-  // Given to anyone with at least one linked character.
-  verifiedRoleId: required('VERIFIED_ROLE_ID'),
-  // Optional: given only if a character is in an allowed corp/alliance.
-  corpMemberRoleId: process.env.CORP_MEMBER_ROLE_ID || null,
-  allowedCorporations: idSet('ALLOWED_CORPORATIONS'),
-  allowedAlliances: idSet('ALLOWED_ALLIANCES'),
-  // Optional faction warfare roles: given if a character's corp is enlisted with that side's militia.
-  // Independent of the corp member role, so allies and other FW pilots get them too.
-  militiaRoles: [
-    { roleId: process.env.AMARR_MILITIA_ROLE_ID, factions: new Set([AMARR_EMPIRE, CALDARI_STATE]) },
-    { roleId: process.env.GALLENTE_MILITIA_ROLE_ID, factions: new Set([GALLENTE_FEDERATION, MINMATAR_REPUBLIC]) },
-  ].filter((r) => r.roleId),
-  // "any": a role applies if ANY linked character qualifies. "main": only the main counts.
-  rolesFrom: process.env.ROLES_FROM === 'main' ? 'main' : 'any',
-
-  setNicknames: process.env.SET_NICKNAMES !== 'false',
-  // Placeholders: {name} {corp} {alliance}. Empty [] brackets are stripped.
-  nickFormat: process.env.NICK_FORMAT || '[{corp}] {name}',
+  settingsFile: process.env.SETTINGS_FILE || 'settings.json',
 
   eve: {
     clientId: required('EVE_CLIENT_ID'),

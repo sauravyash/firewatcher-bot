@@ -3,7 +3,7 @@
 # Run as root from the cloned repo folder:  bash deploy/setup.sh
 # Optional Cloudflare Tunnel:               CLOUDFLARE_TUNNEL_TOKEN=... bash deploy/setup.sh
 # (Not root? Prefix either command with sudo.)
-# Safe to re-run: keeps the existing .env and database, replaces the code, restarts the bot.
+# Safe to re-run: keeps the existing .env, settings.json and database, replaces the code, restarts the bot.
 set -euo pipefail
 
 APP_DIR=/opt/firewatcher-bot
@@ -39,6 +39,15 @@ if [[ ! -f "$APP_DIR/.env" ]]; then
   fi
 fi
 
+if [[ ! -f "$APP_DIR/settings.json" ]]; then
+  if [[ -f "$SRC_DIR/settings.json" ]]; then
+    cp "$SRC_DIR/settings.json" "$APP_DIR/settings.json"
+  else
+    cp "$SRC_DIR/settings.example.json" "$APP_DIR/settings.json"
+    NEEDS_CONFIG=1
+  fi
+fi
+
 (cd "$APP_DIR" && npm ci --omit=dev --no-fund --no-audit)
 chown -R firewatcher-bot:firewatcher-bot "$APP_DIR"
 chmod 600 "$APP_DIR/.env"
@@ -60,7 +69,7 @@ fi
 
 if [[ -n "${NEEDS_CONFIG:-}" ]]; then
   echo
-  echo "!! No .env was provided. Fill in $APP_DIR/.env, then run:"
+  echo "!! Fill in $APP_DIR/.env and $APP_DIR/settings.json, then run:"
   echo "   systemctl restart firewatcher-bot"
   exit 0
 fi

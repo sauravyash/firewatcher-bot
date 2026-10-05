@@ -15,8 +15,15 @@ const deps = { store, eve, verifier, config };
 
 client.once(Events.ClientReady, async (c) => {
   console.log(`Logged in as ${c.user.tag}`);
-  const guild = await c.guilds.fetch(config.guildId);
-  await guild.commands.set(commandData); // guild-scoped commands show up instantly
+  for (const { guildId, name } of config.guilds.values()) {
+    try {
+      const guild = await c.guilds.fetch(guildId);
+      await guild.commands.set(commandData); // guild-scoped commands show up instantly
+      console.log(`Serving ${guild.name} (${guildId})`);
+    } catch (err) {
+      console.error(`Could not set up ${name}: is the bot invited to that server?`, err.message);
+    }
+  }
   startWebServer(deps);
 
   setInterval(() => verifier.syncAll().catch((err) => console.error('Periodic sync failed:', err)), config.syncMinutes * 60_000);

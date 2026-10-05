@@ -3,7 +3,7 @@
 # Run as root from the cloned repo folder:  bash deploy/setup.sh
 # Optional Cloudflare Tunnel:               CLOUDFLARE_TUNNEL_TOKEN=... bash deploy/setup.sh
 # (Not root? Prefix either command with sudo.)
-# Safe to re-run: keeps the existing .env and database, replaces the code, restarts the bot.
+# Safe to re-run: keeps the existing .env, guilds.json and database, replaces the code, restarts the bot.
 set -euo pipefail
 
 APP_DIR=/opt/firewatcher-bot

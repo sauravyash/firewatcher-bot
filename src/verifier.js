@@ -1,3 +1,5 @@
+import { loadGuilds } from './config.js';
+
 const UNKNOWN_MEMBER = 10007;
 const NICK_MAX = 32; // Discord's limit; EVE names can be up to 37 characters
 
@@ -10,6 +12,24 @@ export class Verifier {
     this.store = store;
     this.eve = eve;
     this.config = config;
+    this.guilds = config.guilds;
+  }
+
+  /**
+   * Re-reads GUILDS_FILE so edits apply on the next sync without a restart. A file with mistakes is
+   * logged and the last good settings are kept. Adding or removing a server needs a restart, since
+   * slash commands are registered per server at startup.
+   */
+  reloadGuilds() {
+    if (!process.env.GUILDS_FILE) return;
+    try {
+      const next = loadGuilds();
+      const same = next.size === this.guilds.size && [...next.keys()].every((id) => this.guilds.has(id));
+      if (!same) throw new Error('servers were added or removed. Restart the bot to apply that.');
+      this.guilds = next;
+    } catch (err) {
+      console.error(`Keeping the previous server settings: ${err.message}`);
+    }
   }
 
   async linkCharacter(discordId, login) {
@@ -77,7 +97,7 @@ export class Verifier {
    */
   async syncMember(discordId) {
     const failures = [];
-    for (const guildConfig of this.config.guilds.values()) {
+    for (const guildConfig of this.guilds.values()) {
       try {
         await this.syncMemberIn(guildConfig, discordId);
       } catch (err) {
@@ -132,8 +152,9 @@ export class Verifier {
     }
   }
 
-  /** Refreshes every character's corp/alliance from ESI and re-syncs every linked member. */
+  /** Reloads GUILDS_FILE, refreshes every character's corp/alliance from ESI and re-syncs every linked member. */
   async syncAll() {
+    this.reloadGuilds();
     this.eve.clearCache();
     const chars = this.store.allCharacters();
     if (chars.length) {

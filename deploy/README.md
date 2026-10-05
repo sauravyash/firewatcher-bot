@@ -49,6 +49,8 @@ Fill it in. Use `EVE_CALLBACK_URL=https://firewatcher-bot.yaa.sh/callback` and k
 
 ```bash
 nano /opt/firewatcher-bot/.env
+cp ~/firewatcher-bot/guilds.example.json /opt/firewatcher-bot/guilds.json
+nano /opt/firewatcher-bot/guilds.json
 systemctl restart firewatcher-bot
 ```
 
@@ -70,7 +72,7 @@ Push your changes to GitHub, then in the container:
 cd ~/firewatcher-bot && git pull && bash deploy/setup.sh
 ```
 
-Your `.env` and the database (`/opt/firewatcher-bot/firewatcher-bot.db`) are kept.
+Your `.env`, `guilds.json` and the database (`/opt/firewatcher-bot/firewatcher-bot.db`) are kept.
 
 ## Troubleshooting
 
@@ -79,6 +81,7 @@ Your `.env` and the database (`/opt/firewatcher-bot/firewatcher-bot.db`) are kep
 | Service fails with `status=226/NAMESPACE` | The container can't do systemd sandboxing. Turn on **nesting** for the container (Proxmox: Options → Features), or delete the `ProtectSystem`, `ProtectHome` and `PrivateTmp` lines from `/etc/systemd/system/firewatcher-bot.service` and run `systemctl daemon-reload && systemctl restart firewatcher-bot`. |
 | Callback URL shows a Cloudflare error page | Check `systemctl status cloudflared` and that the tunnel's public hostname points to `HTTP` → `localhost:8080`. |
 | `Missing required environment variable` in the logs | Fill in that value in `/opt/firewatcher-bot/.env`, then restart. |
+| `guilds.json has problems` in the logs | Fix each listed line in `/opt/firewatcher-bot/guilds.json`. At startup, restart after fixing. Later, run `/resync`. |
 
 ## Useful commands
 
@@ -86,5 +89,6 @@ Your `.env` and the database (`/opt/firewatcher-bot/firewatcher-bot.db`) are kep
 |---|---|
 | Logs | `journalctl -u firewatcher-bot -f` |
 | Restart | `systemctl restart firewatcher-bot` |
+| Edit roles, corps, alliances | `nano /opt/firewatcher-bot/guilds.json`, then `/resync` in Discord |
 | Status | `systemctl status firewatcher-bot cloudflared` |
 | Back up the database | `cp /opt/firewatcher-bot/firewatcher-bot.db ~/firewatcher-bot-backup.db` |

@@ -26,6 +26,9 @@ client.once(Events.ClientReady, async (c) => {
   }
   startWebServer(deps);
 
+  // Sync once at startup so role changes in the settings reach every linked member without waiting.
+  verifier.syncAll().catch((err) => console.error('Startup sync failed:', err));
+
   setInterval(() => verifier.syncAll().catch((err) => console.error('Periodic sync failed:', err)), config.syncMinutes * 60_000);
 });
 

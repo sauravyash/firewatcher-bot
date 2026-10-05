@@ -77,14 +77,14 @@ export class EveClient {
     return result;
   }
 
-  /** Public corp/alliance info, cached until clearCache(). kind is "corporations" or "alliances". */
+  /** Public character/corp/alliance info, cached until clearCache(). kind is "characters", "corporations" or "alliances". */
   async info(kind, id) {
     const key = `${kind}:${id}`;
     if (!this.infoCache.has(key)) this.infoCache.set(key, await this.esi(`/${kind}/${id}/`));
     return this.infoCache.get(key);
   }
 
-  /** Corps can rename, change ticker, or enlist/leave militia, so the periodic sync refetches. */
+  /** Corps can rename or change ticker, and pilots and corps enlist or leave militia, so the periodic sync refetches. */
   clearCache() {
     this.infoCache.clear();
   }
@@ -93,8 +93,14 @@ export class EveClient {
     return id ? (await this.info(kind, id)).ticker : '';
   }
 
-  /** The faction warfare faction a corp is enlisted with (including NPC militia corps), or null. */
-  async militiaFaction(corporationId) {
-    return corporationId ? ((await this.info('corporations', corporationId)).faction_id ?? null) : null;
+  /**
+   * The faction warfare faction a character is fighting for, or null. Pilots can enlist on their own,
+   * even in a player corp that isn't enlisted, so the character's public faction_id comes first.
+   * The corp's faction_id (enlisted corps and NPC militia corps) is the fallback.
+   */
+  async militiaFaction(character) {
+    const own = (await this.info('characters', character.character_id)).faction_id;
+    if (own) return own;
+    return character.corporation_id ? ((await this.info('corporations', character.corporation_id)).faction_id ?? null) : null;
   }
 }

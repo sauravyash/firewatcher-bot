@@ -128,7 +128,8 @@ function guildConfig(guildId, raw, where, p) {
     corpRoles.push(rule);
   });
 
-  // Shorthand for one role per alliance: [{ name, allianceId, roleId }]. Several may share a role.
+  // Shorthand for one role per alliance: [{ name, allianceId, roleId }]. Several alliances may share a
+  // role, and one alliance may earn several roles (e.g. its own role plus a friendlies role).
   const seenAlliances = new Map();
   if (raw.allianceRoles != null && !Array.isArray(raw.allianceRoles)) p.add(where, 'allianceRoles must be a list [ ... ]');
   (Array.isArray(raw.allianceRoles) ? raw.allianceRoles : []).forEach((r, i) => {
@@ -137,11 +138,13 @@ function guildConfig(guildId, raw, where, p) {
     const allianceId = p.eveId(`${at} → allianceId`, r.allianceId);
     const roleId = p.discordId(at, r, 'roleId');
     if (allianceId === null) return;
-    if (seenAlliances.has(allianceId)) {
-      p.add(at, `alliance ${allianceId} is already listed at allianceRoles[${seenAlliances.get(allianceId)}]`);
+    // Only the same alliance and role twice is a mistake.
+    const key = `${allianceId}:${roleId}`;
+    if (seenAlliances.has(key)) {
+      p.add(at, `alliance ${allianceId} with this role is already listed at allianceRoles[${seenAlliances.get(key)}]`);
       return;
     }
-    seenAlliances.set(allianceId, i);
+    seenAlliances.set(key, i);
     corpRoles.push({ name: r.name || `allianceRoles[${i}]`, roleId, corporations: new Set(), alliances: new Set([allianceId]) });
   });
 

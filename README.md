@@ -47,7 +47,7 @@ Start from [guilds.example.json](guilds.example.json):
 |---|---|
 | `verifiedRoleId` | Anyone with at least one linked character |
 | `corpRoles` | One role per rule: `{ name, roleId, corporations: [...], alliances: [...] }`. Members with a character in any listed corp or alliance |
-| `allianceRoles` | Shorthand for one role per alliance: `{ name, allianceId, roleId }`. Several alliances can share a role. People in unlisted alliances get none |
+| `allianceRoles` | Shorthand for one role per alliance: `{ name, allianceId, roleId }`. Several alliances can share a role, and one alliance can have several roles (e.g. its own role plus a friendlies role). People in unlisted alliances get none |
 | `amarrMilitiaRoleId` | Members with a character whose corp is enlisted with the **Amarr or Caldari** militia |
 | `gallenteMilitiaRoleId` | Members with a character whose corp is enlisted with the **Gallente or Minmatar** militia |
 | `amarrRoleId`, `caldariRoleId`, `gallenteRoleId`, `minmatarRoleId` | Members with a character whose corp is enlisted with that one faction's militia |
@@ -63,7 +63,8 @@ Other per-server fields: `name` (a label for logs), `rolesFrom` (`"any"` or `"ma
 - `name` fields are labels for you. The bot doesn't match on them.
 
 The bot checks the whole file and lists every mistake at once: invalid JSON, unknown or misspelled
-fields, unquoted or malformed ids, and duplicate alliances. At startup, a bad file stops the bot.
+fields, unquoted or malformed ids, and the same alliance listed twice for one role. At startup, a bad
+file stops the bot, so check it after editing with `npm run check-config`.
 The file is **reloaded on every sync**, so after editing it, run `/resync` (or wait for the next
 sync) instead of restarting. If an edit has a mistake, the bot logs it and keeps using the last good
 settings. Adding or removing a server needs a restart.

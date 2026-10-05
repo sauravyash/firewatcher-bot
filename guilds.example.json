@@ -1,0 +1,31 @@
+{
+  "guilds": {
+    "111111111111111111": {
+      "name": "Main corp server",
+      "verifiedRoleId": "222222222222222222",
+      "corpRoles": [
+        { "name": "Our corp", "roleId": "333333333333333333", "corporations": [98000001] },
+        { "name": "Sister corps", "roleId": "888888888888888888", "corporations": [98000002, 98000003] }
+      ],
+      "allianceRoles": [
+        { "name": "Our alliance", "allianceId": 99000001, "roleId": "999999999999999999" },
+        { "name": "Friendly alliance", "allianceId": 99000002, "roleId": "101010101010101010" },
+        { "name": "Another friend (shares the role above)", "allianceId": 99000003, "roleId": "101010101010101010" }
+      ],
+      "amarrMilitiaRoleId": "444444444444444444",
+      "gallenteMilitiaRoleId": "555555555555555555",
+      "amarrRoleId": null,
+      "caldariRoleId": null,
+      "gallenteRoleId": null,
+      "minmatarRoleId": null,
+      "rolesFrom": "any",
+      "setNicknames": true,
+      "nickFormat": "[{corp}] {name}"
+    },
+    "666666666666666666": {
+      "name": "Coalition server",
+      "verifiedRoleId": "777777777777777777",
+      "setNicknames": false
+    }
+  }
+}

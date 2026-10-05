@@ -31,13 +31,24 @@ export const commandData = [
     .addStringOption((o) => o.setName('name').setDescription('Exact character name').setRequired(true)),
   new SlashCommandBuilder()
     .setName('resync')
-    .setDescription('Refresh corp/alliance data and re-apply roles for everyone')
+    .setDescription('Refresh corp/alliance data and re-apply roles for everyone in every server')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 ].map((c) => c.toJSON());
 
 const ephemeral = { flags: MessageFlags.Ephemeral };
 
-export async function handleInteraction(interaction, { store, eve, verifier }) {
+export async function handleInteraction(interaction, { store, eve, verifier, config }) {
+  // Leftover commands in a server that was removed from the config.
+  if (!config.guilds.has(interaction.guildId)) {
+    if (interaction.isRepliable()) {
+      await interaction.reply({ ...ephemeral, content: "This server isn't set up for EVE verification." });
+    }
+    return;
+  }
+
+  // Admin lookups only reveal members of the server they're run in.
+  const inThisServer = async (discordId) => Boolean(await verifier.fetchMember(interaction.guildId, discordId));
+
   if (interaction.isAutocomplete()) {
     const typed = interaction.options.getFocused().toLowerCase();
     const choices = store
@@ -105,7 +116,7 @@ export async function handleInteraction(interaction, { store, eve, verifier }) {
     case 'whois': {
       await interaction.deferReply(ephemeral);
       const user = interaction.options.getUser('member', true);
-      const chars = store.charactersFor(user.id);
+      const chars = (await inThisServer(user.id)) ? store.charactersFor(user.id) : [];
       return interaction.editReply({
         content: chars.length ? `<@${user.id}>:\n${await describeAll(chars)}` : `<@${user.id}> has no linked characters.`,
         allowedMentions: { parse: [] },
@@ -113,10 +124,13 @@ export async function handleInteraction(interaction, { store, eve, verifier }) {
     }
 
     case 'whochar': {
-      const character = store.findCharacterByName(interaction.options.getString('name', true));
-      return interaction.reply({
-        ...ephemeral,
-        content: character ? `**${character.name}** belongs to <@${character.discord_id}>.` : 'No member has linked that character.',
+      await interaction.deferReply(ephemeral);
+      let character = store.findCharacterByName(interaction.options.getString('name', true));
+      if (character && !(await inThisServer(character.discord_id))) character = null;
+      return interaction.editReply({
+        content: character
+          ? `**${character.name}** belongs to <@${character.discord_id}>.`
+          : 'No member of this server has linked that character.',
         allowedMentions: { parse: [] },
       });
     }

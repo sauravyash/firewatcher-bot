@@ -18,65 +18,68 @@ The main sets their server nickname, and their roles come from their characters'
 The bot stores no refresh tokens. Each SSO login is used once, to prove identity, and then
 discarded.
 
-## Settings
+## Servers and roles
 
-Secrets (Discord token, EVE app keys) and runtime options go in `.env`. Everything else goes in
-`settings.json` next to it: the server id, the roles, and the corps and alliances. Start by
-copying [settings.example.json](settings.example.json). Set `SETTINGS_FILE` in `.env` to use a
-different path.
+The bot can serve several Discord servers. Members link characters once, and each server applies
+its own role rules. Put the servers in a JSON file and point `GUILDS_FILE` at it in `.env`.
+Start from [guilds.example.json](guilds.example.json):
 
 ```json
 {
-  "guildId": "123456789012345678",
-  "roles": {
-    "verified": "123456789012345678",
-    "corpMember": null,
-    "amarrMilitia": null, "gallenteMilitia": null,
-    "amarr": null, "caldari": null, "gallente": null, "minmatar": null
-  },
-  "rolesFrom": "any",
-  "allowedCorporations": [{ "name": "Example Corp", "id": 98000001 }],
-  "allowedAlliances": [],
-  "allianceRoles": [
-    { "name": "Example Alliance", "allianceId": 99000001, "roleId": "123456789012345678" }
-  ],
-  "nicknames": { "enabled": true, "format": "[{corp}] {name}" }
+  "guilds": {
+    "111111111111111111": {
+      "name": "Main corp server",
+      "verifiedRoleId": "222222222222222222",
+      "corpRoles": [
+        { "name": "Our corp", "roleId": "333333333333333333", "corporations": [98000001] }
+      ],
+      "allianceRoles": [
+        { "name": "Friendly alliance", "allianceId": 99000002, "roleId": "101010101010101010" }
+      ],
+      "amarrMilitiaRoleId": "444444444444444444",
+      "caldariRoleId": "555555555555555555"
+    }
+  }
 }
 ```
 
-- **Discord ids** (`guildId`, role ids) must be **in quotes**. They're too long for plain JSON
-  numbers, which would round them. Use `null` (or leave the field out) for a role you don't want.
-- **EVE ids** (corps, alliances) are plain numbers. They're the number in the zKillboard or EVE Who URL.
-- `name` fields are labels for you. The bot ignores them. `allowedCorporations` and
-  `allowedAlliances` also accept bare ids: `[98000001, 98000002]`.
-- `rolesFrom` is `"any"` or `"main"`; see [How alts work](#how-alts-work).
-- Nickname placeholders: `{name}` `{corp}` `{alliance}`. Discord truncates at 32 characters.
-
-The bot checks the whole file and lists every mistake at once: bad JSON, unknown or misspelled
-fields, unquoted or malformed ids, and duplicates. At startup, a bad file stops the bot.
-The file is **reloaded on every sync**, so after editing it, run `/resync` (or wait for the next
-sync) instead of restarting. If an edit has a mistake, the bot logs it and keeps using the last
-good version. Changing `guildId` needs a restart.
-
-## Roles
-
-| `roles.` / setting | Given to |
+| Field (per server) | Given to |
 |---|---|
-| `verified` | Anyone with at least one linked character |
-| `corpMember` | Members with a character in `allowedCorporations` or `allowedAlliances` (if both lists are empty, every verified character counts) |
-| `amarrMilitia` | Members with a character whose corp is enlisted with the **Amarr or Caldari** militia |
-| `gallenteMilitia` | Members with a character whose corp is enlisted with the **Gallente or Minmatar** militia |
-| `amarr`, `caldari`, `gallente`, `minmatar` | Members with a character whose corp is enlisted with that one faction's militia |
-| `allianceRoles` | Members with a character in a listed alliance get that alliance's role. People in unlisted alliances get none |
+| `verifiedRoleId` | Anyone with at least one linked character |
+| `corpRoles` | One role per rule: `{ name, roleId, corporations: [...], alliances: [...] }`. Members with a character in any listed corp or alliance |
+| `allianceRoles` | Shorthand for one role per alliance: `{ name, allianceId, roleId }`. Several alliances can share a role. People in unlisted alliances get none |
+| `amarrMilitiaRoleId` | Members with a character whose corp is enlisted with the **Amarr or Caldari** militia |
+| `gallenteMilitiaRoleId` | Members with a character whose corp is enlisted with the **Gallente or Minmatar** militia |
+| `amarrRoleId`, `caldariRoleId`, `gallenteRoleId`, `minmatarRoleId` | Members with a character whose corp is enlisted with that one faction's militia |
+| `corpMemberRoleId` + `allowedCorporations` / `allowedAlliances` | The original single corp member role. With both lists empty, every verified character qualifies |
 
-Militia roles are separate from the corp member role, so a member can hold both, and allied
-FW pilots outside your corp get a militia role too. Militia membership comes from the
-corporation's public `faction_id` in ESI. That includes the NPC militia corps solo pilots join,
-like 24th Imperial Crusade or Federal Defense Union. No extra EVE permissions are needed.
+Other per-server fields: `name` (a label for logs), `rolesFrom` (`"any"` or `"main"`, see
+[How alts work](#how-alts-work)), `setNicknames` (`true`/`false`) and `nickFormat`
+(placeholders `{name}` `{corp}` `{alliance}`; Discord truncates at 32 characters). Every role is optional.
 
-Several settings can point at the same Discord role (for example, two alliances sharing one
-role). A member gets it if any of them match. Roles are removed when a member no longer
-qualifies. The bot syncs everyone at startup, so new settings reach existing members right away.
+- **Discord ids** (server and role ids) must be **in quotes**. They're too long for plain JSON
+  numbers, which would round them.
+- **EVE ids** (corps, alliances) are plain numbers. They're the number in the zKillboard or EVE Who URL.
+- `name` fields are labels for you. The bot doesn't match on them.
+
+The bot checks the whole file and lists every mistake at once: invalid JSON, unknown or misspelled
+fields, unquoted or malformed ids, and duplicate alliances. At startup, a bad file stops the bot.
+The file is **reloaded on every sync**, so after editing it, run `/resync` (or wait for the next
+sync) instead of restarting. If an edit has a mistake, the bot logs it and keeps using the last good
+settings. Adding or removing a server needs a restart.
+
+Several rules can point at the same Discord role. A member gets it if any of them match. Roles are
+removed when a member no longer qualifies. The bot syncs everyone at startup, so new settings reach
+existing members right away.
+
+Militia roles are separate from the corp roles, so a member can hold both, and allied FW pilots
+outside your corp get a militia role too. Militia membership comes from the corporation's public
+`faction_id` in ESI. That includes the NPC militia corps solo pilots join, like 24th Imperial
+Crusade or Federal Defense Union. No extra EVE permissions are needed.
+
+**Single server without a file:** leave `GUILDS_FILE` empty and set `GUILD_ID`, `VERIFIED_ROLE_ID`
+and the other role variables in `.env` instead (see [.env.example](.env.example)). `allianceRoles`
+and `corpRoles` need the file.
 
 ## Commands
 
@@ -100,8 +103,8 @@ qualifies. The bot syncs everyone at startup, so new settings reach existing mem
   if needed).
 - **Role sources.** With `"rolesFrom": "any"`, a member qualifies if *any* of their characters is in
   an allowed corp or alliance. This covers the common "my main is in an NPC corp, my alt is in
-  ours" case. With `"main"`, only the main counts. This applies to the militia,
-  faction and alliance roles too: with `any`, someone with alts in both militias gets both roles. Use `/whois` to spot that.
+  ours" case. With `"main"`, only the main counts. This applies to the corp, alliance
+  and militia roles too: with `any`, someone with alts in both militias gets both roles. Use `/whois` to spot that.
 - **Alts on another EVE account.** The SSO page remembers the last account used. To link an alt
   on a different account, log out on the SSO page first or use a private window.
 
@@ -113,7 +116,7 @@ qualifies. The bot syncs everyone at startup, so new settings reach existing mem
    role **above** the roles it hands out. It can't rename the server owner or anyone above it.
 2. **EVE app:** create an application at <https://developers.eveonline.com/applications> with the
    `publicData` scope. Set its callback URL to your `EVE_CALLBACK_URL`.
-3. **Config:** `cp .env.example .env` and `cp settings.example.json settings.json`, then fill
+3. **Config:** `cp .env.example .env` and `cp guilds.example.json guilds.json`, then fill
    both in. To get Discord ids, turn on
    Developer Mode in Discord, then right-click a server or role and choose **Copy ID**.
 4. Run:

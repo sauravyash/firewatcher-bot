@@ -99,6 +99,13 @@
     <div id="list" class="muted">Loading…</div>
   </section>
 
+  <section id="hierarchy-section">
+    <h2>Member list order <span class="muted small">(hoisted roles, highest first)</span><span class="spacer"></span>
+      <button id="hier-reset" class="hidden">Reset</button> <button class="primary hidden" id="hier-save">Save order</button></h2>
+    <p class="muted small" style="margin:0 0 8px">Members show under their highest hoisted role. Locked roles keep their place; the others swap only among themselves.</p>
+    <div id="hierarchy"></div>
+  </section>
+
   <section id="file-section" class="hidden">
     <h2>Also set in guilds.json <span class="muted small">(read-only, edit the file on the server)</span></h2>
     <div id="file-rules"></div>
@@ -296,11 +303,69 @@ function renderLog() {
     el('span', {}, el('span', { class: 'act' }, l.actor), ' ', l.summary))) : [el('li', { class: 'muted' }, 'No changes yet.')]));
 }
 
+// --- Member list order (hoisted roles) ---
+
+let hierOrder = null; // movable hoisted role ids, highest first, as edited (null = as in Discord)
+
+const hoistedRoles = () => state.roles.filter((r) => r.hoist); // already sorted highest first
+const movableIds = () => hoistedRoles().filter((r) => !r.orderLocked).map((r) => r.id);
+
+function renderHierarchy() {
+  const hoisted = hoistedRoles();
+  hierOrder ??= movableIds();
+  const byId = new Map(hoisted.map((r) => [r.id, r]));
+  const dirty = hierOrder.join() !== movableIds().join();
+  $('hier-save').classList.toggle('hidden', !dirty);
+  $('hier-reset').classList.toggle('hidden', !dirty);
+  if (!hoisted.length) {
+    $('hierarchy').replaceChildren(el('p', { class: 'muted' }, 'No hoisted roles. Turn on "Show members separately" in a role\'s settings to add one.'));
+    return;
+  }
+  // Locked roles stay in their slots; movable roles fill the rest in the edited order.
+  let next = 0;
+  const rows = hoisted.map((slot) => (slot.orderLocked ? slot : byId.get(hierOrder[next++])));
+  const usedBy = (id) => state.entries.filter((e) => e.role?.id === id).map((e) => e.name);
+  $('hierarchy').replaceChildren(...rows.map((r) => {
+    const i = hierOrder.indexOf(r.id);
+    const users = usedBy(r.id);
+    return el('div', { class: 'row', style: 'grid-template-columns: minmax(0,1fr) auto' },
+      el('div', {},
+        el('div', { class: 'title' }, roleChip(r), r.orderLocked ? el('span', { class: 'tag', title: r.orderLocked }, `fixed: ${r.orderLocked}`) : null),
+        users.length ? el('div', { class: 'meta' }, `linked to ${users.join(', ')}`) : null),
+      r.orderLocked ? el('span') : el('div', { class: 'actions' },
+        el('button', { 'aria-label': `Move ${r.name} up`, disabled: i === 0, onclick: () => moveRole(i, -1) }, '↑'),
+        el('button', { 'aria-label': `Move ${r.name} down`, disabled: i === hierOrder.length - 1, onclick: () => moveRole(i, 1) }, '↓')));
+  }));
+}
+
+function moveRole(i, delta) {
+  const j = i + delta;
+  [hierOrder[i], hierOrder[j]] = [hierOrder[j], hierOrder[i]];
+  renderHierarchy();
+}
+
+async function saveHierarchy() {
+  $('hier-save').disabled = true;
+  try {
+    await api('PUT', '/hierarchy', { order: hierOrder });
+    hierOrder = null;
+    toast('Member list order saved');
+    await load();
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    $('hier-save').disabled = false;
+  }
+}
+
 async function load() {
   state = await api('GET', '/state');
   $('server').textContent = `· ${state.server}`;
   $('me').textContent = `${state.me.name} (${state.me.level})`;
+  // Keep an unsaved order unless the set of movable roles changed underneath it.
+  if (hierOrder && [...hierOrder].sort().join() !== [...movableIds()].sort().join()) hierOrder = null;
   renderList();
+  renderHierarchy();
   renderFileRules();
   renderLog();
   if (suggestions) renderSuggestions();
@@ -590,6 +655,8 @@ $('add-form').addEventListener('submit', submitAdd);
 $('edit-form').addEventListener('submit', submitEdit);
 $('remove-form').addEventListener('submit', submitRemove);
 $('recheck').addEventListener('click', () => loadSuggestions(true));
+$('hier-save').addEventListener('click', saveHierarchy);
+$('hier-reset').addEventListener('click', () => { hierOrder = null; renderHierarchy(); });
 $('logout').addEventListener('click', async () => {
   await api('POST', '/logout', {}).catch(() => {});
   document.body.replaceChildren(el('main', {}, el('section', {}, 'Signed out. Run /manage-roles in Discord to open the panel again.')));

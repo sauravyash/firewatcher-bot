@@ -8,6 +8,7 @@ import {
   InteractionContextType,
   MessageFlags,
   PermissionFlagsBits,
+  Routes,
   SlashCommandBuilder,
 } from 'discord.js';
 
@@ -26,6 +27,14 @@ const STAFF_PERMISSIONS = [
   PermissionFlagsBits.Administrator,
   PermissionFlagsBits.ManageGuild,
   PermissionFlagsBits.ManageRoles,
+];
+
+// Who can act on whom depends on role order for these, so the panel never moves a role that has them.
+const HIERARCHY_PERMISSIONS = [
+  PermissionFlagsBits.KickMembers,
+  PermissionFlagsBits.BanMembers,
+  PermissionFlagsBits.ModerateMembers,
+  PermissionFlagsBits.ManageNicknames,
 ];
 
 export const manageRolesCommand = new SlashCommandBuilder()
@@ -219,6 +228,7 @@ export class RoleManager {
     if (method === 'PATCH' && entryMatch) return this.editEntry(Number(entryMatch[1]), body, actor);
     if (method === 'DELETE' && entryMatch) return this.removeEntry(Number(entryMatch[1]), body, actor);
     if (method === 'PATCH' && roleMatch) return this.editRole(roleMatch[1], body, actor);
+    if (method === 'PUT' && path === '/hierarchy') return this.reorderHoisted(body.order, actor);
     throw new ApiError(404, 'Not found.');
   }
 
@@ -231,6 +241,14 @@ export class RoleManager {
     if (role.managed) return 'managed by a bot or integration';
     if (STAFF_PERMISSIONS.some((p) => role.permissions.has(p, false))) return 'has admin or manage permissions';
     if (guild.members.me.roles.highest.comparePositionTo(role) <= 0) return "at or above the bot's highest role";
+    return null;
+  }
+
+  /** Why the panel may not move a role in the member list order, or null if it may. */
+  orderLockedReason(guild, role) {
+    const reason = this.protectedReason(guild, role);
+    if (reason) return reason;
+    if (HIERARCHY_PERMISSIONS.some((p) => role.permissions.has(p, false))) return 'has moderation permissions';
     return null;
   }
 
@@ -258,6 +276,7 @@ export class RoleManager {
       mentionable: role.mentionable,
       position: role.position,
       locked: this.protectedReason(guild, role),
+      orderLocked: role.hoist ? this.orderLockedReason(guild, role) : null,
     };
   }
 
@@ -568,6 +587,39 @@ export class RoleManager {
     if (!said.length) return { ok: true };
     await role.edit({ ...edit, reason: this.reason(actor, `edit role ${role.name}`) });
     this.store.logRoleAction(this.guildId, actor, 'edit role', `Role ${role.name}: ${said.join(', ')}`);
+    return { ok: true };
+  }
+
+  /**
+   * Reorders the hoisted roles the panel may move, which sets the order of groups in Discord's member
+   * list. `order` lists those roles highest first. They're shuffled only among the positions they
+   * already hold, so every other role (staff, bot, non-hoisted) keeps its exact place.
+   */
+  async reorderHoisted(order, actor) {
+    const guild = await this.guild();
+    const movable = [...guild.roles.cache.values()]
+      .filter((r) => r.hoist && r.id !== guild.id && !this.orderLockedReason(guild, r))
+      .sort((a, b) => b.position - a.position);
+    const ids = Array.isArray(order) ? order.map(String) : [];
+    const current = new Set(movable.map((r) => r.id));
+    if (ids.length !== current.size || new Set(ids).size !== ids.length || !ids.every((id) => current.has(id))) {
+      throw new ApiError(409, 'The hoisted roles changed in Discord since the page loaded. Reload and try again.');
+    }
+
+    const slots = movable.map((r) => r.position); // highest first
+    const changes = ids
+      .map((id, i) => ({ id, position: slots[i] }))
+      .filter(({ id, position }) => guild.roles.cache.get(id).position !== position);
+    if (!changes.length) return { ok: true };
+
+    // Straight to the API: discord.js's setPositions can't attach an audit-log reason.
+    await this.client.rest.patch(Routes.guildRoles(guild.id), {
+      body: changes,
+      reason: this.reason(actor, 'reorder hoisted roles'),
+    });
+    await guild.roles.fetch(); // so the page reloads with the new order
+    const names = ids.map((id) => guild.roles.cache.get(id)?.name ?? id);
+    this.store.logRoleAction(this.guildId, actor, 'reorder', `Member list order: ${names.join(' › ')}`.slice(0, 500));
     return { ok: true };
   }
 

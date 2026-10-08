@@ -11,7 +11,8 @@
   "scripts": {
     "start": "node --env-file=.env src/index.js",
     "check-config": "node --env-file=.env --input-type=module -e \"await import('./src/config.js'); console.log('Config OK')\"",
-    "check": "node --check src/index.js && node --check src/config.js && node --check src/db.js && node --check src/eve.js && node --check src/verifier.js && node --check src/web.js && node --check src/commands.js"
+    "import-roles": "node --env-file=.env src/import-roles.js",
+    "check": "node --check src/index.js && node --check src/config.js && node --check src/db.js && node --check src/eve.js && node --check src/verifier.js && node --check src/web.js && node --check src/commands.js && node --check src/panel.js && node --check src/import-roles.js"
   },
   "dependencies": {
     "discord.js": "^14.16.0",

@@ -5,20 +5,23 @@ import { EveClient } from './eve.js';
 import { Verifier } from './verifier.js';
 import { startWebServer } from './web.js';
 import { commandData, handleInteraction } from './commands.js';
+import { RoleManager, manageRolesCommand } from './panel.js';
 
 // Only the non-privileged Guilds intent: members are fetched one at a time over REST when needed.
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const store = new Store(config.dbPath);
 const eve = new EveClient({ ...config.eve, contactEmail: config.contactEmail });
 const verifier = new Verifier({ client, store, eve, config });
-const deps = { store, eve, verifier, config };
+const roleManager = config.manager ? new RoleManager({ client, store, eve, verifier, config }) : null;
+const deps = { store, eve, verifier, roleManager, config };
 
 client.once(Events.ClientReady, async (c) => {
   console.log(`Logged in as ${c.user.tag}`);
   for (const { guildId, name } of config.guilds.values()) {
     try {
       const guild = await c.guilds.fetch(guildId);
-      await guild.commands.set(commandData); // guild-scoped commands show up instantly
+      // Guild-scoped commands show up instantly. /manage-roles only exists on the role manager's server.
+      await guild.commands.set(guildId === config.manager?.guildId ? [...commandData, manageRolesCommand] : commandData);
       console.log(`Serving ${guild.name} (${guildId})`);
     } catch (err) {
       console.error(`Could not set up ${name}: is the bot invited to that server?`, err.message);

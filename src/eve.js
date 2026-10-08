@@ -58,7 +58,11 @@ export class EveClient {
       ...init,
       headers: { 'User-Agent': this.userAgent, 'Content-Type': 'application/json', ...init.headers },
     });
-    if (!res.ok) throw new Error(`ESI ${path} failed: ${res.status} ${await res.text()}`);
+    if (!res.ok) {
+      const err = new Error(`ESI ${path} failed: ${res.status} ${await res.text()}`);
+      err.status = res.status;
+      throw err;
+    }
     return res.json();
   }
 
@@ -87,6 +91,22 @@ export class EveClient {
   /** Corps can rename or change ticker, and pilots and corps enlist or leave militia, so the periodic sync refetches. */
   clearCache() {
     this.infoCache.clear();
+  }
+
+  /** Exact name → id. kind is "alliances" or "corporations". Null if no such alliance or corp. */
+  async idForName(kind, name) {
+    try {
+      const found = await this.esi('/universe/ids/', { method: 'POST', body: JSON.stringify([name]) });
+      return found[kind]?.[0]?.id ?? null;
+    } catch (err) {
+      if (err.status === 404) return null;
+      throw err;
+    }
+  }
+
+  /** The ids of every corp currently in an alliance. ESI refreshes this about hourly. */
+  async allianceCorporations(allianceId) {
+    return this.esi(`/alliances/${allianceId}/corporations/`);
   }
 
   async ticker(kind, id) {

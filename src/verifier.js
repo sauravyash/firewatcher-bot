@@ -79,6 +79,22 @@ export class Verifier {
     return corporations.has(character.corporation_id) || alliances.has(character.alliance_id);
   }
 
+  /**
+   * Role rules from the role manager panel's entries, in the same shape as corpRoles. Unlinked entries
+   * and roles deleted in Discord are skipped, so a missing role doesn't fail the whole member.
+   */
+  managedRules(guild) {
+    return this.store
+      .roleEntries(guild.id)
+      .filter((e) => e.role_id && guild.roles.cache.has(e.role_id))
+      .map((e) => ({
+        name: e.name,
+        roleId: e.role_id,
+        corporations: new Set(e.kind === 'corporation' ? [e.eve_id] : []),
+        alliances: new Set(e.kind === 'alliance' ? [e.eve_id] : []),
+      }));
+  }
+
   async nicknameFor(guildConfig, main) {
     const corp = await this.eve.ticker('corporations', main.corporation_id);
     const alliance = await this.eve.ticker('alliances', main.alliance_id);
@@ -131,7 +147,7 @@ export class Verifier {
     const wanted = new Map();
     const want = (roleId, on) => wanted.set(roleId, wanted.get(roleId) || on);
     if (guildConfig.verifiedRoleId) want(guildConfig.verifiedRoleId, chars.length > 0);
-    for (const rule of guildConfig.corpRoles) {
+    for (const rule of [...guildConfig.corpRoles, ...this.managedRules(member.guild)]) {
       want(rule.roleId, roleSource.some((c) => this.matchesCorpRole(rule, c)));
     }
     if (guildConfig.militiaRoles.length) {
@@ -152,8 +168,27 @@ export class Verifier {
     }
   }
 
-  /** Reloads GUILDS_FILE, refreshes every character's corp/alliance from ESI and re-syncs every linked member. */
-  async syncAll() {
+  /**
+   * Reloads GUILDS_FILE, refreshes every character's corp/alliance from ESI and re-syncs every linked
+   * member. One sync runs at a time; asking during a sync runs one more after it, so no change is missed.
+   */
+  syncAll() {
+    if (this.syncing) {
+      this.syncAgain = true;
+      return this.syncing;
+    }
+    this.syncing = (async () => {
+      do {
+        this.syncAgain = false;
+        await this.syncAllOnce();
+      } while (this.syncAgain);
+    })().finally(() => {
+      this.syncing = null;
+    });
+    return this.syncing;
+  }
+
+  async syncAllOnce() {
     this.reloadGuilds();
     this.eve.clearCache();
     const chars = this.store.allCharacters();

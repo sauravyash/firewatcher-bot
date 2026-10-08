@@ -239,16 +239,45 @@ export function loadGuilds() {
   return process.env.GUILDS_FILE ? guildsFromFile(process.env.GUILDS_FILE) : guildFromEnv();
 }
 
+/**
+ * The role manager panel (/manage-roles), or null when MANAGER_GUILD_ID is empty. It serves one
+ * server, which must also be one of the bot's servers so its entries become role rules.
+ */
+function managerFromEnv(guilds, callbackUrl) {
+  const guildId = process.env.MANAGER_GUILD_ID;
+  if (!guildId) return null;
+  const p = new Problems();
+  const raw = {
+    guildId,
+    adminRoleId: process.env.MANAGER_ADMIN_ROLE_ID || '1556710981512462407',
+    modRoleId: process.env.MANAGER_MOD_ROLE_ID || '1437498228273844335',
+  };
+  for (const key of Object.keys(raw)) p.discordId('.env', raw, key);
+  if (!guilds.has(guildId)) p.add('.env', `MANAGER_GUILD_ID ${guildId} must be one of the bot's servers (GUILDS_FILE or GUILD_ID)`);
+  p.check('.env');
+  return {
+    ...raw,
+    // Where the panel's links point. Defaults to the host that serves the EVE callback.
+    publicUrl: (process.env.PUBLIC_URL || new URL(callbackUrl).origin).replace(/\/+$/, ''),
+    // Default name for roles the panel creates. Placeholders: {ticker} {name}.
+    roleNameFormat: process.env.ROLE_NAME_FORMAT || '[{ticker}] {name}',
+  };
+}
+
+const guilds = loadGuilds();
+const callbackUrl = required('EVE_CALLBACK_URL');
+
 export const config = {
   discordToken: required('DISCORD_TOKEN'),
 
   // The servers at startup. The verifier reloads GUILDS_FILE on every sync (see Verifier.reloadGuilds).
-  guilds: loadGuilds(),
+  guilds,
+  manager: managerFromEnv(guilds, callbackUrl),
 
   eve: {
     clientId: required('EVE_CLIENT_ID'),
     clientSecret: required('EVE_CLIENT_SECRET'),
-    callbackUrl: required('EVE_CALLBACK_URL'),
+    callbackUrl,
   },
   contactEmail: required('CONTACT_EMAIL'),
 

@@ -89,6 +89,7 @@ Your `.env`, `guilds.json` and the database (`/opt/firewatcher-bot/firewatcher-b
 |---|---|
 | Logs | `journalctl -u firewatcher-bot -f` |
 | Restart | `systemctl restart firewatcher-bot` |
+| Role manager panel | `/manage-roles` in Discord (needs `MANAGER_GUILD_ID` in `.env`) |
 | Edit roles, corps, alliances | `nano /opt/firewatcher-bot/guilds.json`, check it with `cd /opt/firewatcher-bot && sudo -u firewatcher-bot npm run check-config`, then `/resync` in Discord |
 | Status | `systemctl status firewatcher-bot cloudflared` |
 | Back up the database | `cp /opt/firewatcher-bot/firewatcher-bot.db ~/firewatcher-bot-backup.db` |

@@ -94,6 +94,44 @@ and `corpRoles` need the file.
 | `/whois @member` | Manage Roles | All characters linked to a member |
 | `/whochar <name>` | Manage Roles | Which member owns a character |
 | `/resync` | Manage Roles | Force a full refresh now |
+| `/manage-roles` | Panel admins and mods | Open the [role manager panel](#role-manager-panel) (only on `MANAGER_GUILD_ID`) |
+
+## Role manager panel
+
+Server admins and mods can manage the alliance and corp roles in a web panel instead of editing
+`guilds.json`. Set `MANAGER_GUILD_ID` in `.env` to turn it on for one server (see
+[.env.example](.env.example)), then run `/manage-roles` there. Staff get a private, single-use link
+(valid 10 minutes) that signs them in for 12 hours. Anyone else is refused.
+
+| | Admin | Mod |
+|---|---|---|
+| View the list, recommendations and change log | ✓ | ✓ |
+| Add alliances and corps, link or create their role | ✓ | ✓ |
+| Edit notes, relink, rename/recolour/hoist/mentionable the linked role | ✓ | ✓ |
+| Remove entries, delete their Discord role | ✓ | |
+
+Access comes from the `MANAGER_ADMIN_ROLE_ID` and `MANAGER_MOD_ROLE_ID` roles and is re-checked with
+Discord at least once a minute, so taking the role away locks someone out straight away.
+
+- **Entries are role rules.** Each alliance or corp in the panel works like an `allianceRoles` or
+  `corpRoles` rule: the bot gives its role to verified members with a character there. Changes reach
+  members in a sync about 30 seconds later. Several entries can share a role, and an alliance can be
+  listed more than once with different roles. Rules still in `guilds.json` keep working and are shown
+  read-only in the panel.
+- **Removing an entry** stops the bot handing out its role, but members who have it keep it. Tick
+  "also delete the Discord role" to remove it from everyone (only allowed if nothing else uses it).
+- **Recommendations** come from ESI's member list of each listed alliance (the same data DOTLAN shows,
+  refreshed about hourly): corps that joined but aren't listed yet, with one-click "Add with new role"
+  (in the alliance role's colour), and listed corps that left. Untick "Recommend new member corps" on
+  friendly alliances you don't want per-corp roles for.
+- **Safety.** New roles have no permissions, and edits only change name, colour, hoist and
+  mentionable. The panel won't link or change @everyone, the admin and mod roles, bot-managed
+  roles, roles with Administrator, Manage Server or Manage Roles, or roles at or above the bot's own.
+  Every change carries an audit-log reason naming the staff member.
+
+To move the existing rules for that server from `guilds.json` into the panel, run
+`npm run import-roles` (shows what it would do) and then `npm run import-roles -- --apply`. Check the
+panel, then delete that server's `corpRoles` and `allianceRoles` from `guilds.json`.
 
 ## How alts work
 

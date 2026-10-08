@@ -1,7 +1,11 @@
 import http from 'node:http';
 import { LinkError } from './verifier.js';
+import { privacyPage, termsPage } from './legal.js';
 
-/** Hosts the EVE SSO callback that finishes a /verify, and the role manager panel under /roles. */
+/**
+ * Hosts the EVE SSO callback that finishes a /verify, the role manager panel under /roles, and the
+ * Terms of Service and Privacy Policy linked from the Discord application.
+ */
 export function startWebServer({ store, eve, verifier, roleManager, config }) {
   const callbackPath = new URL(config.eve.callbackUrl).pathname;
 
@@ -9,6 +13,11 @@ export function startWebServer({ store, eve, verifier, roleManager, config }) {
     const url = new URL(req.url, 'http://localhost');
     if (roleManager && (url.pathname === '/roles' || url.pathname.startsWith('/roles/'))) {
       return roleManager.handle(req, res, url);
+    }
+    const legal = { '/terms': termsPage, '/privacy': privacyPage }[url.pathname];
+    if (legal && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end(legal(config));
     }
     if (req.method !== 'GET' || url.pathname !== callbackPath) return send(res, 404, 'Not found.');
 

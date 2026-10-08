@@ -148,6 +148,13 @@ panel, then delete that server's `corpRoles` and `allianceRoles` from `guilds.js
 - **Alts on another EVE account.** The SSO page remembers the last account used. To link an alt
   on a different account, log out on the SSO page first or use a private window.
 
+## Terms and privacy
+
+The bot serves a Terms of Service at `/terms` and a Privacy Policy at `/privacy` on the same address as
+the EVE callback (e.g. `https://firewatcher-bot.yaa.sh/terms`). Put those URLs in the Discord developer
+portal under **General Information**. Both show `CONTACT_EMAIL` as the contact. If you change what the
+bot stores, update [src/legal.js](src/legal.js) to match.
+
 ## Setup
 
 1. **Discord app:** create a bot at <https://discord.com/developers/applications> and copy the

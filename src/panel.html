@@ -206,7 +206,7 @@ async function api(method, path, body) {
   return data;
 }
 
-const isAdmin = () => state?.me.level === 'admin';
+const isRoot = () => state?.me.level === 'root';
 const plural = (kind) => (kind === 'alliance' ? 'alliances' : 'corporations');
 const logo = (kind, id, size = 64) => `https://images.evetech.net/${plural(kind)}/${id}/logo?size=${size}`;
 const dotlan = (kind, name) => `https://evemaps.dotlan.net/${kind === 'alliance' ? 'alliance' : 'corp'}/${encodeURIComponent(name.replaceAll(' ', '_'))}`;
@@ -243,7 +243,7 @@ function entryRow(e, nested) {
         el('span', { title: when(e.updatedAt) }, `updated ${ago(e.updatedAt)} by ${e.updatedBy}`))),
     el('div', { class: 'actions' },
       el('button', { onclick: () => openEdit(e) }, 'Edit'),
-      isAdmin() ? el('button', { onclick: () => openRemove(e) }, 'Remove') : null));
+      isRoot() ? el('button', { onclick: () => openRemove(e) }, 'Remove') : null));
 }
 
 function renderList() {
@@ -354,7 +354,7 @@ function renderSuggestions() {
           el('div', { class: 'meta' },
             el('span', {}, `left ${c.allianceName}${c.nowAllianceName ? `, now in ${c.nowAllianceName}` : ', now in no alliance'}`),
             el('a', { href: dotlan('corporation', c.name), target: '_blank', rel: 'noopener' }, 'DOTLAN'))),
-        el('div', { class: 'actions' }, isAdmin() && entry ? el('button', { onclick: () => openRemove(entry) }, 'Remove') : null)));
+        el('div', { class: 'actions' }, isRoot() && entry ? el('button', { onclick: () => openRemove(entry) }, 'Remove') : null)));
     }
   }
   if (!body.length) {
@@ -537,7 +537,7 @@ async function submitEdit(ev) {
   }
 }
 
-// --- Remove (admins) ---
+// --- Remove (root only) ---
 
 let removing = null;
 

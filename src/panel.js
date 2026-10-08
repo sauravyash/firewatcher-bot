@@ -12,7 +12,7 @@ import {
 } from 'discord.js';
 
 const SESSION_SECONDS = 12 * 60 * 60;
-const ACCESS_CACHE_MS = 60_000; // how long a member's admin/mod role is trusted before asking Discord again
+const ACCESS_CACHE_MS = 60_000; // how long a member's root/admin role is trusted before asking Discord again
 const ESI_CACHE_MS = 10 * 60_000; // alliance member lists and corp info for the recommendations
 const SYNC_DELAY_MS = 30_000; // changes are batched into one member sync
 const COOKIE = 'role_manager';
@@ -30,7 +30,7 @@ const STAFF_PERMISSIONS = [
 
 export const manageRolesCommand = new SlashCommandBuilder()
   .setName('manage-roles')
-  .setDescription('Open the alliance and corp role manager (admins and mods)')
+  .setDescription('Open the alliance and corp role manager (root and admin only)')
   .setContexts(InteractionContextType.Guild)
   .toJSON();
 
@@ -45,7 +45,7 @@ class ApiError extends Error {
 const KINDS = { alliance: 'alliances', corporation: 'corporations' };
 
 /**
- * The web panel where server admins and mods map alliances and corps to Discord roles, opened from
+ * The web panel where server staff (root and admin levels) map alliances and corps to Discord roles, opened from
  * Discord with /manage-roles. Its entries become role rules alongside guilds.json (Verifier.managedRules).
  */
 export class RoleManager {
@@ -69,7 +69,7 @@ export class RoleManager {
 
   // --- Who may use it ---
 
-  /** 'admin', 'mod' or null, from the member's current roles. Cached for about a minute. */
+  /** 'root', 'admin' or null, from the member's current roles. Cached for about a minute. */
   async accessFor(discordId, { fresh = false } = {}) {
     const cached = this.access.get(discordId);
     if (!fresh && cached && Date.now() - cached.at < ACCESS_CACHE_MS) return cached;
@@ -82,7 +82,7 @@ export class RoleManager {
       if (err.code !== UNKNOWN_MEMBER) throw err;
     }
     const has = (roleId) => Boolean(member?.roles.cache.has(roleId));
-    const level = has(this.settings.adminRoleId) ? 'admin' : has(this.settings.modRoleId) ? 'mod' : null;
+    const level = has(this.settings.rootRoleId) ? 'root' : has(this.settings.adminRoleId) ? 'admin' : null;
     const result = { level, name: member?.displayName ?? discordId, at: Date.now() };
     this.access.set(discordId, result);
     return result;
@@ -97,7 +97,7 @@ export class RoleManager {
     }
     await interaction.deferReply(ephemeral);
     const { level } = await this.accessFor(interaction.user.id, { fresh: true });
-    if (!level) return interaction.editReply('Only server admins and mods can manage roles.');
+    if (!level) return interaction.editReply('Only members with the root or admin role can manage roles.');
 
     const token = randomBytes(24).toString('base64url');
     this.store.addPanelLink(token, this.guildId, interaction.user.id);
@@ -155,7 +155,7 @@ export class RoleManager {
 
       if (!access?.level) {
         const message = discordId
-          ? 'You no longer have the admin or mod role on the server.'
+          ? 'You no longer have the root or admin role on the server.'
           : 'Run /manage-roles in Discord to open the role manager.';
         if (isApi) return json(res, 401, { error: message }, { 'Set-Cookie': this.clearCookie() });
         return page(res, 401, message, { 'Set-Cookie': this.clearCookie() });
@@ -202,7 +202,7 @@ export class RoleManager {
       return page(res, 400, 'This link has expired or was already used. Run /manage-roles in Discord again.');
     }
     const { level } = await this.accessFor(link.discordId, { fresh: true });
-    if (!level) return page(res, 403, 'Only server admins and mods can manage roles.');
+    if (!level) return page(res, 403, 'Only members with the root or admin role can manage roles.');
     res.writeHead(303, { Location: '/roles/', 'Set-Cookie': this.sessionCookie(link.discordId), 'Cache-Control': 'no-store' });
     res.end();
   }
@@ -227,7 +227,7 @@ export class RoleManager {
   /** Why the panel may not touch a role, or null if it's a plain membership-tag role. */
   protectedReason(guild, role) {
     if (role.id === guild.id) return '@everyone';
-    if (role.id === this.settings.adminRoleId || role.id === this.settings.modRoleId) return 'staff role';
+    if (role.id === this.settings.rootRoleId || role.id === this.settings.adminRoleId) return 'staff role';
     if (role.managed) return 'managed by a bot or integration';
     if (STAFF_PERMISSIONS.some((p) => role.permissions.has(p, false))) return 'has admin or manage permissions';
     if (guild.members.me.roles.highest.comparePositionTo(role) <= 0) return "at or above the bot's highest role";
@@ -413,8 +413,8 @@ export class RoleManager {
 
   // --- Writes ---
 
-  requireAdmin(actor, what) {
-    if (actor.level !== 'admin') throw new ApiError(403, `Only admins can ${what}.`);
+  requireRoot(actor, what) {
+    if (actor.level !== 'root') throw new ApiError(403, `Only root can ${what}.`);
   }
 
   /** Creates a membership-tag role: no permissions, below the bot. */
@@ -512,7 +512,7 @@ export class RoleManager {
   }
 
   async removeEntry(id, body, actor) {
-    this.requireAdmin(actor, 'remove entries');
+    this.requireRoot(actor, 'remove entries');
     const guild = await this.guild();
     const entry = this.store.roleEntry(this.guildId, id);
     if (!entry) throw new ApiError(404, 'That entry was already removed. Reload the page.');

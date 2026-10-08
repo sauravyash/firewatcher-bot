@@ -249,8 +249,9 @@ function managerFromEnv(guilds, callbackUrl) {
   const p = new Problems();
   const raw = {
     guildId,
-    adminRoleId: process.env.MANAGER_ADMIN_ROLE_ID || '1556710981512462407',
-    modRoleId: process.env.MANAGER_MOD_ROLE_ID || '1437498228273844335',
+    // Root: full control (Head Of IT). Admin: everything except removing entries and deleting roles (Admins).
+    rootRoleId: process.env.MANAGER_ROOT_ROLE_ID || '1556710981512462407',
+    adminRoleId: process.env.MANAGER_ADMIN_ROLE_ID || '1437498228273844335',
   };
   for (const key of Object.keys(raw)) p.discordId('.env', raw, key);
   if (!guilds.has(guildId)) p.add('.env', `MANAGER_GUILD_ID ${guildId} must be one of the bot's servers (GUILDS_FILE or GUILD_ID)`);

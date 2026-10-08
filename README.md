@@ -94,23 +94,23 @@ and `corpRoles` need the file.
 | `/whois @member` | Manage Roles | All characters linked to a member |
 | `/whochar <name>` | Manage Roles | Which member owns a character |
 | `/resync` | Manage Roles | Force a full refresh now |
-| `/manage-roles` | Panel admins and mods | Open the [role manager panel](#role-manager-panel) (only on `MANAGER_GUILD_ID`) |
+| `/manage-roles` | Panel root and admin | Open the [role manager panel](#role-manager-panel) (only on `MANAGER_GUILD_ID`) |
 
 ## Role manager panel
 
-Server admins and mods can manage the alliance and corp roles in a web panel instead of editing
+Server staff can manage the alliance and corp roles in a web panel instead of editing
 `guilds.json`. Set `MANAGER_GUILD_ID` in `.env` to turn it on for one server (see
 [.env.example](.env.example)), then run `/manage-roles` there. Staff get a private, single-use link
 (valid 10 minutes) that signs them in for 12 hours. Anyone else is refused.
 
-| | Admin | Mod |
+| | Root | Admin |
 |---|---|---|
 | View the list, recommendations and change log | ✓ | ✓ |
 | Add alliances and corps, link or create their role | ✓ | ✓ |
 | Edit notes, relink, rename/recolour/hoist/mentionable the linked role | ✓ | ✓ |
 | Remove entries, delete their Discord role | ✓ | |
 
-Access comes from the `MANAGER_ADMIN_ROLE_ID` and `MANAGER_MOD_ROLE_ID` roles and is re-checked with
+Access comes from the `MANAGER_ROOT_ROLE_ID` (Head Of IT) and `MANAGER_ADMIN_ROLE_ID` (Admins) roles and is re-checked with
 Discord at least once a minute, so taking the role away locks someone out straight away.
 
 - **Entries are role rules.** Each alliance or corp in the panel works like an `allianceRoles` or
@@ -125,7 +125,7 @@ Discord at least once a minute, so taking the role away locks someone out straig
   (in the alliance role's colour), and listed corps that left. Untick "Recommend new member corps" on
   friendly alliances you don't want per-corp roles for.
 - **Safety.** New roles have no permissions, and edits only change name, colour, hoist and
-  mentionable. The panel won't link or change @everyone, the admin and mod roles, bot-managed
+  mentionable. The panel won't link or change @everyone, the root and admin roles, bot-managed
   roles, roles with Administrator, Manage Server or Manage Roles, or roles at or above the bot's own.
   Every change carries an audit-log reason naming the staff member.
 

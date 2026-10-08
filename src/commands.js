@@ -3,6 +3,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  EmbedBuilder,
   MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder,
@@ -33,9 +34,56 @@ export const commandData = [
     .setName('resync')
     .setDescription('Refresh corp/alliance data and re-apply roles for everyone in every server')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
+  new SlashCommandBuilder()
+    .setName('post-verify')
+    .setDescription('Post a "Verify with EVE Online" button in this channel')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 ].map((c) => c.toJSON());
 
 const ephemeral = { flags: MessageFlags.Ephemeral };
+const VERIFY_BUTTON = 'verify:start';
+const MISSING_ACCESS = 50001;
+const MISSING_PERMISSIONS = 50013;
+
+/** The private reply with a fresh, single-use EVE login link for whoever ran /verify or clicked the button. */
+function verifyReply(interaction, store, eve) {
+  const state = randomBytes(24).toString('base64url');
+  store.addPending(state, interaction.user.id);
+  const button = new ButtonBuilder()
+    .setStyle(ButtonStyle.Link)
+    .setLabel('Log in with EVE Online')
+    .setURL(eve.authorizeUrl(state));
+  return interaction.reply({
+    ...ephemeral,
+    content:
+      'Log in with EVE Online and pick the character to link. This link is only for you and expires in 10 minutes.\n\n' +
+      '**Alts:** verify again for each one. Alts on another EVE account: on the EVE login page, ' +
+      'log out first (or use a private window), then sign in to the other account.',
+    components: [new ActionRowBuilder().addComponents(button)],
+  });
+}
+
+/** The shared message staff post with /post-verify. Its button carries no link; each click gets its own. */
+function verifyPanel() {
+  return {
+    embeds: [
+      new EmbedBuilder()
+        .setColor(0xe67e22)
+        .setTitle('Verify your EVE character')
+        .setDescription(
+          'Click **Verify with EVE Online** to link your character. You get a private login link that only ' +
+            "you can see. Log in on EVE Online's own site and pick your character, and your roles and " +
+            'nickname are set automatically.\n\n' +
+            'Have alts? Click again for each one. You can also use `/verify` anywhere.',
+        ),
+    ],
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(VERIFY_BUTTON).setStyle(ButtonStyle.Primary).setLabel('Verify with EVE Online'),
+      ),
+    ],
+  };
+}
 
 export async function handleInteraction(interaction, { store, eve, verifier, roleManager, config }) {
   // Leftover commands in a server that was removed from the config.
@@ -58,6 +106,7 @@ export async function handleInteraction(interaction, { store, eve, verifier, rol
       .map((c) => ({ name: c.name, value: String(c.character_id) }));
     return interaction.respond(choices);
   }
+  if (interaction.isButton() && interaction.customId === VERIFY_BUTTON) return verifyReply(interaction, store, eve);
   if (!interaction.isChatInputCommand()) return;
 
   const describe = async (c) => {
@@ -69,21 +118,21 @@ export async function handleInteraction(interaction, { store, eve, verifier, rol
   const describeAll = async (chars) => (await Promise.all(chars.map(describe))).join('\n');
 
   switch (interaction.commandName) {
-    case 'verify': {
-      const state = randomBytes(24).toString('base64url');
-      store.addPending(state, interaction.user.id);
-      const button = new ButtonBuilder()
-        .setStyle(ButtonStyle.Link)
-        .setLabel('Log in with EVE Online')
-        .setURL(eve.authorizeUrl(state));
-      return interaction.reply({
-        ...ephemeral,
-        content:
-          'Log in with EVE Online and pick the character to link. This link expires in 10 minutes.\n\n' +
-          '**Alts:** run `/verify` again for each one. Alts on another EVE account: on the EVE login page, ' +
-          'log out first (or use a private window), then sign in to the other account.',
-        components: [new ActionRowBuilder().addComponents(button)],
-      });
+    case 'verify':
+      return verifyReply(interaction, store, eve);
+
+    case 'post-verify': {
+      await interaction.deferReply(ephemeral);
+      try {
+        const channel = interaction.channel ?? (await interaction.client.channels.fetch(interaction.channelId));
+        await channel.send(verifyPanel());
+      } catch (err) {
+        if (err.code !== MISSING_ACCESS && err.code !== MISSING_PERMISSIONS) throw err;
+        return interaction.editReply(
+          "I can't post in this channel. Give my role **View Channel**, **Send Messages** and **Embed Links** here, then try again.",
+        );
+      }
+      return interaction.editReply('Posted. Pin it if you like, and delete any old verify messages.');
     }
 
     case 'characters': {

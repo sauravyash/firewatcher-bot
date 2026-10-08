@@ -125,6 +125,11 @@ Discord at least once a minute, so taking the role away locks someone out straig
   refreshed about hourly): corps that joined but aren't listed yet, with one-click "Add with new role"
   (in the alliance role's colour), and listed corps that left. Untick "Recommend new member corps" on
   friendly alliances you don't want per-corp roles for.
+- **Member list order.** Discord groups the member list by each member's highest hoisted role. The
+  panel lists the hoisted roles in order and lets root and admin move them up and down. Only the
+  roles the panel may touch move, and they swap among the positions they already hold, so staff
+  roles, the bot's role, roles with moderation permissions (kick, ban, timeout, manage nicknames)
+  and non-hoisted roles keep their exact place.
 - **Safety.** New roles have no permissions, and edits only change name, colour, hoist and
   mentionable. The panel won't link or change @everyone, the root and admin roles, bot-managed
   roles, roles with Administrator, Manage Server or Manage Roles, or roles at or above the bot's own.

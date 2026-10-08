@@ -37,7 +37,7 @@ export const commandData = [
 
 const ephemeral = { flags: MessageFlags.Ephemeral };
 
-export async function handleInteraction(interaction, { store, eve, verifier, config }) {
+export async function handleInteraction(interaction, { store, eve, verifier, roleManager, config }) {
   // Leftover commands in a server that was removed from the config.
   if (!config.guilds.has(interaction.guildId)) {
     if (interaction.isRepliable()) {
@@ -134,6 +134,10 @@ export async function handleInteraction(interaction, { store, eve, verifier, con
         allowedMentions: { parse: [] },
       });
     }
+
+    case 'manage-roles':
+      if (!roleManager) return interaction.reply({ ...ephemeral, content: "The role manager isn't set up." });
+      return roleManager.handleCommand(interaction);
 
     case 'resync': {
       await interaction.deferReply(ephemeral);

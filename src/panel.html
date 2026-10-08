@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Role manager</title>
+<style>
+  :root {
+    --bg: #1e1f22; --panel: #2b2d31; --raised: #313338; --line: #3f4147; --text: #dbdee1; --muted: #949ba4;
+    --accent: #5865f2; --danger: #da373c; --ok: #23a55a; --warn: #f0b232;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 14px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 17px; margin: 0; }
+  header .who { margin-left: auto; color: var(--muted); }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-width: 0; }
+  section > h2 { font-size: 15px; margin: 0 0 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  section > h2 .spacer { flex: 1; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  button, .btn { font: inherit; border: 0; border-radius: 4px; padding: 6px 12px; background: var(--raised); color: var(--text); cursor: pointer; border: 1px solid var(--line); }
+  button:hover { filter: brightness(1.15); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+  button.link { background: none; border: 0; padding: 2px 6px; color: #00a8fc; }
+  button:disabled { opacity: .5; cursor: default; filter: none; }
+  input, select, textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; max-width: 100%; }
+  input[type=color] { padding: 0 2px; height: 32px; width: 48px; }
+  textarea { width: 100%; min-height: 60px; resize: vertical; }
+  a { color: #00a8fc; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .toolbar input:not([type=radio]):not([type=color]) { flex: 1; min-width: 180px; }
+  .row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 6px; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; }
+  .row.corp { padding-left: 34px; }
+  .row img { width: 32px; height: 32px; border-radius: 4px; background: var(--bg); }
+  .row .title { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .row .name { font-weight: 600; }
+  .row .meta { color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; gap: 2px 10px; }
+  .row .notes { font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .row .actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .group-label { margin: 14px 0 4px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 1px 8px; border-radius: 10px; background: var(--raised); border: 1px solid var(--line); font-size: 12px; max-width: 100%; }
+  .chip .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .chip.missing { border-color: var(--danger); color: #ff8a8d; }
+  .chip.none { color: var(--muted); }
+  .tag { font-size: 11px; padding: 0 6px; border-radius: 3px; background: var(--raised); color: var(--muted); }
+  .suggest { display: grid; gap: 6px; }
+  .suggest .row { grid-template-columns: 32px minmax(0, 1fr) auto; }
+  .log { list-style: none; margin: 0; padding: 0; }
+  .log li { padding: 6px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 9.5em 1fr; gap: 10px; }
+  .log li:first-child { border-top: 0; }
+  .log .act { font-weight: 600; }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 0; width: min(520px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(0, 0, 0, .6); }
+  dialog form { padding: 16px; display: grid; gap: 12px; }
+  dialog h3 { margin: 0; font-size: 16px; }
+  dialog fieldset { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; display: grid; gap: 8px; margin: 0; }
+  dialog legend { color: var(--muted); font-size: 12px; padding: 0 4px; }
+  dialog .buttons { display: flex; justify-content: flex-end; gap: 8px; }
+  label.inline { display: flex; gap: 6px; align-items: center; }
+  .field { display: grid; gap: 4px; }
+  .preview { padding: 8px; border-radius: 6px; background: var(--raised); display: flex; gap: 10px; align-items: center; }
+  .preview img { width: 40px; height: 40px; border-radius: 4px; }
+  .error { color: #ff8a8d; }
+  #toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--raised); border: 1px solid var(--line); padding: 8px 14px; border-radius: 6px; max-width: calc(100vw - 32px); display: none; }
+  #toast.show { display: block; }
+  #toast.bad { border-color: var(--danger); }
+  .hidden { display: none !important; }
+  @media (max-width: 600px) {
+    .row { grid-template-columns: 28px minmax(0, 1fr); }
+    .row .actions { grid-column: 2; justify-content: flex-start; }
+    .row.corp { padding-left: 14px; }
+    .log li { grid-template-columns: 1fr; gap: 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Role manager <span id="server" class="muted"></span></h1>
+  <span class="who"><span id="me"></span> <button class="link" id="logout">Sign out</button></span>
+</header>
+
+<main>
+  <section id="suggestions">
+    <h2>New-corp recommendations <span class="spacer"></span>
+      <span id="checked" class="muted small"></span> <button id="recheck">Check again</button></h2>
+    <div id="suggest-body" class="muted">Checking alliance members…</div>
+  </section>
+
+  <section>
+    <h2>Alliances and corporations</h2>
+    <div class="toolbar">
+      <input id="filter" type="search" placeholder="Filter by name, ticker, role or notes" aria-label="Filter">
+      <button class="primary" id="add">Add entry</button>
+    </div>
+    <div id="list" class="muted">Loading…</div>
+  </section>
+
+  <section id="file-section" class="hidden">
+    <h2>Also set in guilds.json <span class="muted small">(read-only, edit the file on the server)</span></h2>
+    <div id="file-rules"></div>
+  </section>
+
+  <section>
+    <h2>Change log</h2>
+    <ul id="log" class="log"></ul>
+  </section>
+</main>
+
+<dialog id="add-dialog">
+  <form method="dialog" id="add-form">
+    <h3>Add entry</h3>
+    <div class="toolbar" style="margin:0">
+      <label class="inline"><input type="radio" name="kind" value="alliance" checked> Alliance</label>
+      <label class="inline"><input type="radio" name="kind" value="corporation"> Corporation</label>
+    </div>
+    <div class="field">
+      <label for="add-query">Exact in-game name or EVE id</label>
+      <div class="toolbar" style="margin:0"><input id="add-query" autocomplete="off" required><button type="button" id="add-lookup">Look up</button></div>
+    </div>
+    <div id="add-preview" class="preview hidden"></div>
+    <div id="add-rest" class="hidden" style="display:grid;gap:12px">
+      <fieldset id="add-role"></fieldset>
+      <label class="inline" id="add-suggest-wrap"><input type="checkbox" id="add-suggest" checked> Recommend this alliance's new member corps</label>
+      <div class="field"><label for="add-notes">Notes</label><textarea id="add-notes" maxlength="500"></textarea></div>
+    </div>
+    <p class="error" id="add-error"></p>
+    <div class="buttons"><button value="cancel" formnovalidate>Cancel</button><button class="primary" id="add-submit" value="default" disabled>Add</button></div>
+  </form>
+</dialog>
+
+<dialog id="edit-dialog">
+  <form method="dialog" id="edit-form">
+    <h3 id="edit-title">Edit entry</h3>
+    <fieldset id="edit-role"></fieldset>
+    <fieldset id="edit-role-props">
+      <legend>Linked Discord role</legend>
+      <div class="field"><label for="edit-role-name">Name</label><input id="edit-role-name" maxlength="100"></div>
+      <label class="inline">Colour <input type="color" id="edit-role-color"></label>
+      <label class="inline"><input type="checkbox" id="edit-role-hoist"> Show members separately (hoist)</label>
+      <label class="inline"><input type="checkbox" id="edit-role-mentionable"> Anyone can @mention</label>
+      <p class="muted small" id="edit-role-shared"></p>
+    </fieldset>
+    <label class="inline" id="edit-suggest-wrap"><input type="checkbox" id="edit-suggest"> Recommend this alliance's new member corps</label>
+    <div class="field"><label for="edit-notes">Notes</label><textarea id="edit-notes" maxlength="500"></textarea></div>
+    <p class="error" id="edit-error"></p>
+    <div class="buttons"><button value="cancel" formnovalidate>Cancel</button><button class="primary" value="default">Save</button></div>
+  </form>
+</dialog>
+
+<dialog id="remove-dialog">
+  <form method="dialog" id="remove-form">
+    <h3 id="remove-title">Remove entry</h3>
+    <p class="muted">Members keep the role until it's deleted or linked to another entry. The bot stops handing it out for this entry.</p>
+    <label class="inline" id="remove-role-wrap"><input type="checkbox" id="remove-role"> <span id="remove-role-label"></span></label>
+    <p class="error" id="remove-error"></p>
+    <div class="buttons"><button value="cancel" formnovalidate>Cancel</button><button class="danger" value="default">Remove</button></div>
+  </form>
+</dialog>
+
+<div id="toast" role="status"></div>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+let state = null;
+let suggestions = null;
+
+// --- Small DOM helpers: everything from the server goes in as text, never HTML ---
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') node.className = v;
+    else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of children.flat()) if (c != null && c !== false) node.append(c instanceof Node ? c : String(c));
+  return node;
+}
+
+function toast(message, bad = false) {
+  const t = $('toast');
+  t.textContent = message;
+  t.className = `show${bad ? ' bad' : ''}`;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => (t.className = ''), bad ? 6000 : 3000);
+}
+
+async function api(method, path, body) {
+  const res = await fetch(`/roles/api${path}`, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json', 'X-Role-Manager': '1' } : { 'X-Role-Manager': '1' },
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: 'same-origin',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    document.body.replaceChildren(el('main', {}, el('section', {}, data.error || 'Your session ended. Run /manage-roles in Discord again.')));
+    throw new Error(data.error);
+  }
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+const isRoot = () => state?.me.level === 'root';
+const plural = (kind) => (kind === 'alliance' ? 'alliances' : 'corporations');
+const logo = (kind, id, size = 64) => `https://images.evetech.net/${plural(kind)}/${id}/logo?size=${size}`;
+const dotlan = (kind, name) => `https://evemaps.dotlan.net/${kind === 'alliance' ? 'alliance' : 'corp'}/${encodeURIComponent(name.replaceAll(' ', '_'))}`;
+const ago = (seconds) => {
+  const d = Math.max(0, Date.now() / 1000 - seconds);
+  if (d < 90) return 'just now';
+  if (d < 5400) return `${Math.round(d / 60)} min ago`;
+  if (d < 129600) return `${Math.round(d / 3600)} h ago`;
+  return `${Math.round(d / 86400)} days ago`;
+};
+const when = (seconds) => new Date(seconds * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+const roleName = (format, { name, ticker }) => format.replaceAll('{ticker}', ticker).replaceAll('{name}', name).trim().slice(0, 100);
+
+function roleChip(role) {
+  if (!role) return el('span', { class: 'chip none' }, 'no role');
+  if (role.missing) return el('span', { class: 'chip missing', title: 'Deleted in Discord. Edit the entry to relink it.' }, 'role missing');
+  return el('span', { class: 'chip', title: role.locked ? `Locked: ${role.locked}` : '' },
+    el('span', { class: 'dot', style: `background:${role.color === '#000000' ? '#99aab5' : role.color}` }), role.name);
+}
+
+// --- List ---
+
+function entryRow(e, nested) {
+  return el('div', { class: `row${nested ? ' corp' : ''}`, 'data-search': [e.name, e.ticker, e.role?.name, e.notes].join(' ').toLowerCase() },
+    el('img', { src: logo(e.kind, e.eveId), alt: '', loading: 'lazy' }),
+    el('div', {},
+      el('div', { class: 'title' },
+        el('span', { class: 'name' }, e.name), el('span', { class: 'muted' }, `[${e.ticker}]`),
+        e.kind === 'alliance' ? el('span', { class: 'tag' }, 'alliance') : null,
+        roleChip(e.role)),
+      e.notes ? el('div', { class: 'notes' }, e.notes) : null,
+      el('div', { class: 'meta' },
+        el('a', { href: dotlan(e.kind, e.name), target: '_blank', rel: 'noopener' }, 'DOTLAN'),
+        el('span', { title: when(e.updatedAt) }, `updated ${ago(e.updatedAt)} by ${e.updatedBy}`))),
+    el('div', { class: 'actions' },
+      el('button', { onclick: () => openEdit(e) }, 'Edit'),
+      isRoot() ? el('button', { onclick: () => openRemove(e) }, 'Remove') : null));
+}
+
+function renderList() {
+  const list = $('list');
+  list.className = '';
+  const alliances = state.entries.filter((e) => e.kind === 'alliance');
+  const corps = state.entries.filter((e) => e.kind === 'corporation');
+  const listedAlliances = new Set(alliances.map((a) => a.eveId));
+  const nodes = [];
+  const shown = new Set();
+  for (const a of alliances) {
+    nodes.push(entryRow(a, false));
+    if (shown.has(a.eveId)) continue; // the same alliance with a second role: corps sit under the first
+    shown.add(a.eveId);
+    for (const c of corps.filter((c) => c.allianceId === a.eveId)) nodes.push(entryRow(c, true));
+  }
+  const others = corps.filter((c) => !listedAlliances.has(c.allianceId));
+  if (others.length) {
+    nodes.push(el('div', { class: 'group-label' }, 'Corporations outside the listed alliances'));
+    for (const c of others) nodes.push(entryRow(c, false));
+  }
+  if (!nodes.length) nodes.push(el('p', { class: 'muted' }, 'Nothing here yet. Use Add entry to start with your alliance.'));
+  list.replaceChildren(...nodes);
+  applyFilter();
+}
+
+function applyFilter() {
+  const q = $('filter').value.trim().toLowerCase();
+  for (const row of $('list').querySelectorAll('.row')) {
+    row.classList.toggle('hidden', Boolean(q) && !row.dataset.search.includes(q));
+  }
+}
+
+function renderFileRules() {
+  $('file-section').classList.toggle('hidden', !state.fileRules.length);
+  $('file-rules').replaceChildren(...state.fileRules.map((r) => el('div', { class: 'row' },
+    el('span'),
+    el('div', {},
+      el('div', { class: 'title' }, el('span', { class: 'name' }, r.name),
+        el('span', { class: 'chip' }, r.roleName)),
+      el('div', { class: 'meta' },
+        r.alliances.length ? el('span', {}, `alliances: ${r.alliances.join(', ')}`) : null,
+        r.corporations.length ? el('span', {}, `corporations: ${r.corporations.join(', ')}`) : null)),
+    el('span'))));
+}
+
+function renderLog() {
+  $('log').replaceChildren(...(state.log.length ? state.log.map((l) => el('li', {},
+    el('span', { class: 'muted small', title: when(l.at) }, ago(l.at)),
+    el('span', {}, el('span', { class: 'act' }, l.actor), ' ', l.summary))) : [el('li', { class: 'muted' }, 'No changes yet.')]));
+}
+
+async function load() {
+  state = await api('GET', '/state');
+  $('server').textContent = `· ${state.server}`;
+  $('me').textContent = `${state.me.name} (${state.me.level})`;
+  renderList();
+  renderFileRules();
+  renderLog();
+  if (suggestions) renderSuggestions();
+}
+
+// --- Recommendations ---
+
+async function loadSuggestions(refresh = false) {
+  $('recheck').disabled = true;
+  if (!suggestions) {
+    $('suggest-body').className = 'muted';
+    $('suggest-body').textContent = 'Checking alliance members…';
+  }
+  try {
+    suggestions = await api('GET', `/suggestions${refresh ? '?refresh=1' : ''}`);
+    renderSuggestions();
+  } catch (err) {
+    $('suggest-body').textContent = err.message;
+  } finally {
+    $('recheck').disabled = false;
+  }
+}
+
+function renderSuggestions() {
+  const s = suggestions;
+  $('checked').textContent = `checked ${ago(s.checkedAt / 1000)}`;
+  const body = [];
+  if (s.failed.length) body.push(el('p', { class: 'error' }, `Couldn't load members of ${s.failed.join(', ')} from ESI.`));
+  if (s.newCorps.length) {
+    body.push(el('div', { class: 'group-label' }, 'New in the alliance, no role yet'));
+    for (const c of s.newCorps) {
+      body.push(el('div', { class: 'row' },
+        el('img', { src: logo('corporation', c.corpId), alt: '', loading: 'lazy' }),
+        el('div', {},
+          el('div', { class: 'title' }, el('span', { class: 'name' }, c.name), c.ticker ? el('span', { class: 'muted' }, `[${c.ticker}]`) : null),
+          el('div', { class: 'meta' }, el('span', {}, `in ${c.allianceName}`),
+            el('a', { href: dotlan('corporation', c.name), target: '_blank', rel: 'noopener' }, 'DOTLAN'))),
+        el('div', { class: 'actions' },
+          el('button', { class: 'primary', title: `Creates "${roleName(state.roleNameFormat, c)}"`, onclick: (ev) => quickAdd(ev, c, true) }, 'Add with new role'),
+          el('button', { onclick: (ev) => quickAdd(ev, c, false) }, 'Add, no role'))));
+    }
+  }
+  if (s.leftCorps.length) {
+    body.push(el('div', { class: 'group-label' }, 'Left their alliance'));
+    for (const c of s.leftCorps) {
+      const entry = state.entries.find((e) => e.id === c.entryId);
+      body.push(el('div', { class: 'row' },
+        el('img', { src: logo('corporation', c.corpId), alt: '', loading: 'lazy' }),
+        el('div', {},
+          el('div', { class: 'title' }, el('span', { class: 'name' }, c.name), el('span', { class: 'muted' }, `[${c.ticker}]`), entry ? roleChip(entry.role) : null),
+          el('div', { class: 'meta' },
+            el('span', {}, `left ${c.allianceName}${c.nowAllianceName ? `, now in ${c.nowAllianceName}` : ', now in no alliance'}`),
+            el('a', { href: dotlan('corporation', c.name), target: '_blank', rel: 'noopener' }, 'DOTLAN'))),
+        el('div', { class: 'actions' }, isRoot() && entry ? el('button', { onclick: () => openRemove(entry) }, 'Remove') : null)));
+    }
+  }
+  if (!body.length) {
+    body.push(el('p', { class: 'muted' }, state.entries.some((e) => e.kind === 'alliance')
+      ? 'Every member corp of the listed alliances is on the list.'
+      : 'Add your alliance to get recommendations for its member corps.'));
+  }
+  $('suggest-body').className = 'suggest';
+  $('suggest-body').replaceChildren(...body);
+}
+
+async function quickAdd(ev, corp, withRole) {
+  const buttons = ev.target.parentElement.querySelectorAll('button');
+  buttons.forEach((b) => (b.disabled = true));
+  try {
+    await api('POST', '/entries', {
+      kind: 'corporation',
+      eveId: corp.corpId,
+      role: withRole ? { mode: 'new', color: corp.color } : { mode: 'none' },
+    });
+    toast(`Added ${corp.name}`);
+    suggestions.newCorps = suggestions.newCorps.filter((c) => c.corpId !== corp.corpId);
+    await load(); // re-renders the recommendations too
+  } catch (err) {
+    toast(err.message, true);
+    buttons.forEach((b) => (b.disabled = false));
+  }
+}
+
+// --- Role choice (shared by add and edit) ---
+
+function roleChoice(fieldset, { current, info, defaultColor }) {
+  const linkable = state.roles.filter((r) => !r.locked);
+  const name = `role-${fieldset.id}`;
+  const options = [
+    current ? ['keep', current.missing ? 'Keep the missing role (fix later)' : `Keep ${current.name}`] : null,
+    ['new', 'Create a new Discord role'],
+    ['existing', current ? 'Link a different existing role' : 'Link an existing role'],
+    ['none', current ? 'Unlink (no role)' : 'No role for now'],
+  ].filter(Boolean);
+  const select = el('select', { 'aria-label': 'Existing role' },
+    ...linkable.map((r) => el('option', { value: r.id }, r.name)));
+  const newName = el('input', { maxlength: 100, value: info ? roleName(state.roleNameFormat, info) : '', 'aria-label': 'New role name' });
+  const newColor = el('input', { type: 'color', value: defaultColor || '#99aab5', 'aria-label': 'New role colour' });
+  const newBox = el('div', { class: 'toolbar', style: 'margin:0' }, newName, newColor);
+  const existingBox = el('div', {}, linkable.length ? select : el('span', { class: 'muted' }, 'No roles the panel can link. Roles must be below the bot and have no staff permissions.'));
+  const radios = options.map(([value, text], i) => el('label', { class: 'inline' },
+    el('input', { type: 'radio', name, value, checked: i === 0, onchange: sync }), text));
+  function sync() {
+    const mode = fieldset.querySelector(`input[name="${name}"]:checked`).value;
+    newBox.classList.toggle('hidden', mode !== 'new');
+    existingBox.classList.toggle('hidden', mode !== 'existing');
+  }
+  fieldset.replaceChildren(el('legend', {}, 'Discord role'), ...radios, newBox, existingBox);
+  radios[0].querySelector('input').checked = true;
+  sync();
+  return {
+    setInfo(i) { newName.value = roleName(state.roleNameFormat, i); },
+    value() {
+      const mode = fieldset.querySelector(`input[name="${name}"]:checked`).value;
+      if (mode === 'keep') return null;
+      if (mode === 'new') return { mode, name: newName.value.trim(), color: newColor.value };
+      if (mode === 'existing') return { mode, roleId: select.value };
+      return { mode: 'none' };
+    },
+  };
+}
+
+// --- Add ---
+
+let addInfo = null;
+let addRole = null;
+
+function openAdd() {
+  addInfo = null;
+  $('add-form').reset();
+  $('add-preview').classList.add('hidden');
+  $('add-rest').classList.add('hidden');
+  $('add-submit').disabled = true;
+  $('add-error').textContent = '';
+  $('add-dialog').showModal();
+  $('add-query').focus();
+}
+
+async function lookup() {
+  $('add-error').textContent = '';
+  const kind = $('add-form').querySelector('input[name=kind]:checked').value;
+  $('add-lookup').disabled = true;
+  try {
+    addInfo = await api('POST', '/lookup', { kind, query: $('add-query').value });
+    const allianceRole = addInfo.allianceId && state.entries.find((e) => e.kind === 'alliance' && e.eveId === addInfo.allianceId && e.role && !e.role.missing)?.role;
+    $('add-preview').replaceChildren(
+      el('img', { src: logo(kind, addInfo.eveId), alt: '' }),
+      el('div', {}, el('div', { class: 'name' }, `${addInfo.name} [${addInfo.ticker}]`),
+        el('div', { class: 'muted small' }, kind === 'corporation' ? (addInfo.allianceName ? `in ${addInfo.allianceName}` : 'not in an alliance') : `alliance ${addInfo.eveId}`)));
+    $('add-preview').classList.remove('hidden');
+    $('add-suggest-wrap').classList.toggle('hidden', kind !== 'alliance');
+    addRole = roleChoice($('add-role'), { info: addInfo, defaultColor: allianceRole?.color });
+    $('add-rest').classList.remove('hidden');
+    $('add-submit').disabled = false;
+  } catch (err) {
+    $('add-error').textContent = err.message;
+  } finally {
+    $('add-lookup').disabled = false;
+  }
+}
+
+async function submitAdd(ev) {
+  ev.preventDefault();
+  if (ev.submitter?.value === 'cancel') return $('add-dialog').close();
+  if (!addInfo) return lookup();
+  $('add-submit').disabled = true;
+  try {
+    await api('POST', '/entries', {
+      kind: addInfo.kind,
+      eveId: addInfo.eveId,
+      role: addRole.value(),
+      notes: $('add-notes').value,
+      suggestCorps: $('add-suggest').checked,
+    });
+    $('add-dialog').close();
+    toast(`Added ${addInfo.name}`);
+    suggestions = null; // the list changed, so the old recommendations may be wrong
+    await load();
+    loadSuggestions();
+  } catch (err) {
+    $('add-error').textContent = err.message;
+    $('add-submit').disabled = false;
+  }
+}
+
+// --- Edit ---
+
+let editing = null;
+let editRole = null;
+
+function openEdit(e) {
+  editing = e;
+  $('edit-title').textContent = `Edit ${e.name} [${e.ticker}]`;
+  $('edit-error').textContent = '';
+  $('edit-notes').value = e.notes;
+  $('edit-suggest').checked = e.suggestCorps;
+  $('edit-suggest-wrap').classList.toggle('hidden', e.kind !== 'alliance');
+  editRole = roleChoice($('edit-role'), { current: e.role, info: e, defaultColor: e.role?.color });
+  const props = e.role && !e.role.missing && !e.role.locked;
+  $('edit-role-props').classList.toggle('hidden', !props);
+  if (props) {
+    $('edit-role-name').value = e.role.name;
+    $('edit-role-color').value = e.role.color;
+    $('edit-role-hoist').checked = e.role.hoist;
+    $('edit-role-mentionable').checked = e.role.mentionable;
+    const sharing = state.entries.filter((x) => x.id !== e.id && x.role?.id === e.role.id).map((x) => x.name);
+    $('edit-role-shared').textContent = sharing.length ? `Also used by ${sharing.join(', ')}; changes apply to them too.` : '';
+  }
+  $('edit-dialog').showModal();
+}
+
+async function submitEdit(ev) {
+  ev.preventDefault();
+  if (ev.submitter?.value === 'cancel') return $('edit-dialog').close();
+  const e = editing;
+  try {
+    const role = editRole.value();
+    // Role properties apply to the currently linked role, so save them before any relink.
+    if (e.role && !e.role.missing && !e.role.locked && !role) {
+      await api('PATCH', `/roles/${e.role.id}`, {
+        name: $('edit-role-name').value,
+        color: $('edit-role-color').value,
+        hoist: $('edit-role-hoist').checked,
+        mentionable: $('edit-role-mentionable').checked,
+      });
+    }
+    await api('PATCH', `/entries/${e.id}`, { notes: $('edit-notes').value, suggestCorps: $('edit-suggest').checked, role: role ?? undefined });
+    $('edit-dialog').close();
+    toast(`Saved ${e.name}`);
+    await load();
+  } catch (err) {
+    $('edit-error').textContent = err.message;
+    load().catch(() => {});
+  }
+}
+
+// --- Remove (root only) ---
+
+let removing = null;
+
+function openRemove(e) {
+  removing = e;
+  $('remove-title').textContent = `Remove ${e.name} [${e.ticker}]?`;
+  $('remove-error').textContent = '';
+  $('remove-role').checked = false;
+  const role = e.role && !e.role.missing ? e.role : null;
+  const sharedBy = role ? state.entries.filter((x) => x.id !== e.id && x.role?.id === role.id).map((x) => x.name) : [];
+  const inFile = role && state.fileRules.some((r) => r.roleId === role.id);
+  $('remove-role-wrap').classList.toggle('hidden', !role);
+  if (role) {
+    const blocked = sharedBy.length ? `also used by ${sharedBy.join(', ')}` : inFile ? 'also used in guilds.json' : role.locked;
+    $('remove-role').disabled = Boolean(blocked);
+    $('remove-role-label').textContent = blocked ? `Can't delete ${role.name}: ${blocked}` : `Also delete the Discord role ${role.name}`;
+  }
+  $('remove-dialog').showModal();
+}
+
+async function submitRemove(ev) {
+  ev.preventDefault();
+  if (ev.submitter?.value === 'cancel') return $('remove-dialog').close();
+  try {
+    await api('DELETE', `/entries/${removing.id}`, { deleteRole: $('remove-role').checked });
+    $('remove-dialog').close();
+    toast(`Removed ${removing.name}`);
+    suggestions = null; // the list changed, so the old recommendations may be wrong
+    await load();
+    loadSuggestions();
+  } catch (err) {
+    $('remove-error').textContent = err.message;
+  }
+}
+
+// --- Wiring ---
+
+$('filter').addEventListener('input', applyFilter);
+$('add').addEventListener('click', openAdd);
+$('add-lookup').addEventListener('click', lookup);
+$('add-query').addEventListener('keydown', (ev) => {
+  if (ev.key === 'Enter') { ev.preventDefault(); lookup(); }
+});
+$('add-form').addEventListener('change', (ev) => {
+  // Changing alliance/corporation after a lookup needs a new lookup.
+  if (ev.target.name === 'kind') { addInfo = null; $('add-rest').classList.add('hidden'); $('add-preview').classList.add('hidden'); $('add-submit').disabled = true; }
+});
+$('add-query').addEventListener('input', () => { addInfo = null; $('add-submit').disabled = true; });
+$('add-form').addEventListener('submit', submitAdd);
+$('edit-form').addEventListener('submit', submitEdit);
+$('remove-form').addEventListener('submit', submitRemove);
+$('recheck').addEventListener('click', () => loadSuggestions(true));
+$('logout').addEventListener('click', async () => {
+  await api('POST', '/logout', {}).catch(() => {});
+  document.body.replaceChildren(el('main', {}, el('section', {}, 'Signed out. Run /manage-roles in Discord to open the panel again.')));
+});
+
+load().then(() => loadSuggestions()).catch((err) => toast(err.message, true));
+</script>
+</body>
+</html>

@@ -1,12 +1,15 @@
 import http from 'node:http';
 import { LinkError } from './verifier.js';
 
-/** Hosts the EVE SSO callback that finishes a /verify. */
-export function startWebServer({ store, eve, verifier, config }) {
+/** Hosts the EVE SSO callback that finishes a /verify, and the role manager panel under /roles. */
+export function startWebServer({ store, eve, verifier, roleManager, config }) {
   const callbackPath = new URL(config.eve.callbackUrl).pathname;
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
+    if (roleManager && (url.pathname === '/roles' || url.pathname.startsWith('/roles/'))) {
+      return roleManager.handle(req, res, url);
+    }
     if (req.method !== 'GET' || url.pathname !== callbackPath) return send(res, 404, 'Not found.');
 
     const code = url.searchParams.get('code');

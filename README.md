@@ -94,6 +94,7 @@ and `corpRoles` need the file.
 | `/whois @member` | Manage Roles | All characters linked to a member |
 | `/whochar <name>` | Manage Roles | Which member owns a character |
 | `/resync` | Manage Roles | Force a full refresh now |
+| `/post-verify` | Manage Roles | Post a "Verify with EVE Online" button in the current channel. Each click gives that member their own private login link, the same as `/verify`. The bot needs View Channel, Send Messages and Embed Links there. |
 | `/manage-roles` | Panel root and admin | Open the [role manager panel](#role-manager-panel) (only on `MANAGER_GUILD_ID`) |
 
 ## Role manager panel

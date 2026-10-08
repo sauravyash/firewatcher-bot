@@ -15,7 +15,8 @@ export function startWebServer({ store, eve, verifier, roleManager, config }) {
       return roleManager.handle(req, res, url);
     }
     const legal = { '/terms': termsPage, '/privacy': privacyPage }[url.pathname];
-    if (legal && req.method === 'GET') {
+    // HEAD too: link checkers (like Discord's URL validation) often use it. Node drops the body for HEAD.
+    if (legal && (req.method === 'GET' || req.method === 'HEAD')) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       return res.end(legal(config));
     }

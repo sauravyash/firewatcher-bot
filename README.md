@@ -60,6 +60,12 @@ Other per-server fields: `name` (a label for logs), `rolesFrom` (`"any"` or `"ma
 [How alts work](#how-alts-work)), `setNicknames` (`true`/`false`) and `nickFormat`
 (placeholders `{name}` `{corp}` `{alliance}`; Discord truncates at 32 characters). Every role is optional.
 
+`verifyChannelId` (optional): when a member with no linked character posts in this channel, the bot
+replies with the verify button (at most once a minute per member), replacing its previous reply to
+them. It needs View Channel, Send Messages, Embed Links and Read Message History there. The reply is
+public, so it carries the button, not a login link; each click still gets a private link for whoever
+clicked.
+
 - **Discord ids** (server and role ids) must be **in quotes**. They're too long for plain JSON
   numbers, which would round them.
 - **EVE ids** (corps, alliances) are plain numbers. They're the number in the zKillboard or EVE Who URL.

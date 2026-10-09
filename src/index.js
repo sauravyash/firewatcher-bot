@@ -4,11 +4,12 @@ import { Store } from './db.js';
 import { EveClient } from './eve.js';
 import { Verifier } from './verifier.js';
 import { startWebServer } from './web.js';
-import { commandData, handleInteraction } from './commands.js';
+import { commandData, handleInteraction, welcomeMember } from './commands.js';
 import { RoleManager, manageRolesCommand } from './panel.js';
 
-// Only the non-privileged Guilds intent: members are fetched one at a time over REST when needed.
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// GuildMembers (privileged: enable "Server Members Intent" in the Developer Portal) is only for join
+// events. Members are still fetched one at a time over REST when needed.
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
 const store = new Store(config.dbPath);
 const eve = new EveClient({ ...config.eve, contactEmail: config.contactEmail });
 const verifier = new Verifier({ client, store, eve, config });
@@ -47,4 +48,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-client.login(config.discordToken);
+client.on(Events.GuildMemberAdd, (member) => {
+  welcomeMember(member, deps).catch((err) => console.error(`Welcoming ${member.user.tag} failed:`, err));
+});
+
+client.login(config.discordToken).catch((err) => {
+  if (/disallowed intents/i.test(err.message)) {
+    console.error('Turn on "Server Members Intent" under Bot > Privileged Gateway Intents in the Discord Developer Portal.');
+  }
+  throw err;
+});

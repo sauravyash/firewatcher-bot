@@ -63,20 +63,10 @@ function verifyReply(interaction, store, eve) {
   });
 }
 
-/** The shared message staff post with /post-verify. Its button carries no link; each click gets its own. */
-function verifyPanel() {
+/** A verify message with the shared button. The button carries no link; each click gets its own. */
+function verifyMessage(title, description) {
   return {
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0xe67e22)
-        .setTitle('Verify your EVE character')
-        .setDescription(
-          'Click **Verify with EVE Online** to link your character. You get a private login link that only ' +
-            "you can see. Log in on EVE Online's own site and pick your character, and your roles and " +
-            'nickname are set automatically.\n\n' +
-            'Have alts? Click again for each one. You can also use `/verify` anywhere.',
-        ),
-    ],
+    embeds: [new EmbedBuilder().setColor(0xe67e22).setTitle(title).setDescription(description)],
     components: [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(VERIFY_BUTTON).setStyle(ButtonStyle.Primary).setLabel('Verify with EVE Online'),
@@ -85,7 +75,46 @@ function verifyPanel() {
   };
 }
 
+/** The shared message staff post with /post-verify. */
+function verifyPanel() {
+  return verifyMessage(
+    'Verify your EVE character',
+    'Click **Verify with EVE Online** to link your character. You get a private login link that only ' +
+      "you can see. Log in on EVE Online's own site and pick your character, and your roles and " +
+      'nickname are set automatically.\n\n' +
+      'Have alts? Click again for each one. You can also use `/verify` anywhere.',
+  );
+}
+
+/**
+ * Greets a member who just joined a configured server. Members who already linked a character (say,
+ * rejoining) get their roles back right away; everyone else gets a DM with the verify button.
+ */
+export async function welcomeMember(member, { store, verifier }) {
+  const guildConfig = verifier.guilds.get(member.guild.id);
+  if (!guildConfig || member.user.bot) return;
+
+  if (store.charactersFor(member.id).length) return verifier.syncMemberIn(guildConfig, member.id);
+
+  try {
+    await member.send(
+      verifyMessage(
+        `Welcome to ${member.guild.name}`,
+        'To get your roles, link your EVE character. Click **Verify with EVE Online** below, log in on ' +
+          "EVE Online's own site and pick your character. Your roles and nickname are set automatically.\n\n" +
+          `Have alts? Click again for each one. You can also use \`/verify\` in ${member.guild.name}.`,
+      ),
+    );
+  } catch (err) {
+    // Members with DMs from server members turned off. The panel from /post-verify covers them.
+    console.warn(`Couldn't DM the verify button to ${member.user.tag} (${member.guild.name}): ${err.message}`);
+  }
+}
+
 export async function handleInteraction(interaction, { store, eve, verifier, roleManager, config }) {
+  // The verify button also lives in welcome DMs, where there's no server to check.
+  if (interaction.isButton() && interaction.customId === VERIFY_BUTTON) return verifyReply(interaction, store, eve);
+
   // Leftover commands in a server that was removed from the config.
   if (!config.guilds.has(interaction.guildId)) {
     if (interaction.isRepliable()) {
@@ -106,7 +135,6 @@ export async function handleInteraction(interaction, { store, eve, verifier, rol
       .map((c) => ({ name: c.name, value: String(c.character_id) }));
     return interaction.respond(choices);
   }
-  if (interaction.isButton() && interaction.customId === VERIFY_BUTTON) return verifyReply(interaction, store, eve);
   if (!interaction.isChatInputCommand()) return;
 
   const describe = async (c) => {

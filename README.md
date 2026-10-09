@@ -6,11 +6,14 @@ The main sets their server nickname, and their roles come from their characters'
 
 ## How it works
 
-1. A member runs `/verify` and gets a private "Log in with EVE Online" button.
+1. When a member joins, the bot DMs them a **Verify with EVE Online** button (members who already
+   linked a character just get their roles back). Clicking it, the `/post-verify` panel, or running
+   `/verify` gives them a private "Log in with EVE Online" button.
 2. They log in on `login.eveonline.com` and pick a character.
 3. EVE redirects to the bot's `/callback`. The bot checks the signed token from CCP, so the
    character is proven, not typed in, then looks up its corp and alliance through ESI.
-4. The bot gives roles and sets the nickname from the main, for example `[CORP] Main Name`.
+4. The bot gives roles and sets the nickname from the main, for example `[CORP] Main Name`, and
+   DMs the member to confirm the link (skipped if they have DMs from server members turned off).
 5. Every `SYNC_MINUTES` minutes, the bot re-checks every character's corp and alliance in one bulk
    ESI call and updates roles. This handles people who leave the corp, and it resets nicknames
    that someone changed by hand.
@@ -164,7 +167,8 @@ bot stores, update [src/legal.js](src/legal.js) to match.
 ## Setup
 
 1. **Discord app:** create a bot at <https://discord.com/developers/applications> and copy the
-   token. Invite it with the `bot` and `applications.commands` scopes and the
+   token. Under **Bot → Privileged Gateway Intents**, turn on **Server Members Intent** (the
+   bot needs it to see members join; without it, login fails). Invite it with the `bot` and `applications.commands` scopes and the
    **Manage Roles** and **Manage Nicknames** permissions. In your server settings, drag the bot's
    role **above** the roles it hands out. It can't rename the server owner or anyone above it.
 2. **EVE app:** create an application at <https://developers.eveonline.com/applications> with the

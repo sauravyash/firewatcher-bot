@@ -111,6 +111,42 @@ export async function welcomeMember(member, { store, verifier }) {
   }
 }
 
+// Each unverified member's latest reminder in a verify channel ({ at, reply }). The reply is deleted when
+// the next one is sent, and messages within the cooldown get no reply at all.
+const lastReminder = new Map();
+const REMINDER_COOLDOWN_MS = 60_000;
+
+/**
+ * Replies to messages from members with no linked character in a server's verify channel. The reply is
+ * public, so it carries the verify button rather than a login link: each click makes a link for the
+ * clicker, so nobody can use a link meant for someone else.
+ */
+export async function remindUnverified(message, { store, verifier }) {
+  if (message.author.bot || !message.inGuild()) return;
+  const guildConfig = verifier.guilds.get(message.guildId);
+  if (!guildConfig?.verifyChannelId || message.channelId !== guildConfig.verifyChannelId) return;
+  const key = `${message.guildId}:${message.author.id}`;
+  if (store.charactersFor(message.author.id).length) {
+    lastReminder.delete(key);
+    return;
+  }
+
+  const previous = lastReminder.get(key);
+  if (previous && Date.now() - previous.at < REMINDER_COOLDOWN_MS) return;
+  // Claim the slot before awaiting, so a burst of messages gets one reply, not one each.
+  const current = { at: Date.now(), reply: null };
+  lastReminder.set(key, current);
+  previous?.reply?.delete().catch(() => {});
+  current.reply = await message.reply(
+    verifyMessage(
+      "You haven't verified yet",
+      'Click **Verify with EVE Online** below to link your EVE character. You get a private login link ' +
+        "that only you can see. Log in on EVE Online's own site and pick your character, and your roles " +
+        'are set automatically.',
+    ),
+  );
+}
+
 export async function handleInteraction(interaction, { store, eve, verifier, roleManager, config }) {
   // The verify button also lives in welcome DMs, where there's no server to check.
   if (interaction.isButton() && interaction.customId === VERIFY_BUTTON) return verifyReply(interaction, store, eve);

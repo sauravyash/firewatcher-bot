@@ -32,6 +32,7 @@ const MILITIA_ROLES = {
 const GUILD_KEYS = [
   'name', 'verifiedRoleId', 'corpRoles', 'allianceRoles', 'corpMemberRoleId', 'allowedCorporations',
   'allowedAlliances', ...Object.keys(MILITIA_ROLES), 'rolesFrom', 'setNicknames', 'nickFormat',
+  'verifyChannelId',
 ];
 
 const DISCORD_ID = /^\d{17,20}$/;
@@ -186,6 +187,9 @@ function guildConfig(guildId, raw, where, p) {
     setNicknames: raw.setNicknames !== false && raw.setNicknames !== 'false',
     // Placeholders: {name} {corp} {alliance}. Empty [] brackets are stripped.
     nickFormat: raw.nickFormat || '[{corp}] {name}',
+
+    // Optional: messages here from members with no linked character get a reply with the verify button.
+    verifyChannelId: p.discordId(where, raw, 'verifyChannelId', optional),
   };
 }
 
@@ -227,6 +231,7 @@ function guildFromEnv() {
     rolesFrom: env('ROLES_FROM'),
     setNicknames: env('SET_NICKNAMES'),
     nickFormat: env('NICK_FORMAT'),
+    verifyChannelId: env('VERIFY_CHANNEL_ID'),
   };
   const p = new Problems();
   const guild = guildConfig(guildId, raw, '.env', p);

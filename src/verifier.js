@@ -66,10 +66,21 @@ export class Verifier {
     const chars = this.store.charactersFor(discordId);
     const role = chars[0].character_id === login.characterId ? 'main' : 'alt';
     const linked = `Linked ${login.name} as your ${role}. You now have ${chars.length} linked character(s).`;
-    if (!synced) {
-      return `${linked} Your Discord roles couldn't be updated right now; a server admin needs to check the bot's permissions. They'll be applied on the next sync.`;
+    const status = synced
+      ? linked
+      : `${linked} Your Discord roles couldn't be updated right now; a server admin needs to check the bot's permissions. They'll be applied on the next sync.`;
+    await this.notifyLinked(discordId, status);
+    return synced ? `${status} You can close this tab.` : status;
+  }
+
+  /** DMs a member about a successful link. Members with DMs closed (or no shared server) are skipped. */
+  async notifyLinked(discordId, message) {
+    try {
+      const user = await this.client.users.fetch(discordId);
+      await user.send(`✅ ${message}`);
+    } catch (err) {
+      console.warn(`Couldn't DM ${discordId} about their new link: ${err.message}`);
     }
-    return `${linked} You can close this tab.`;
   }
 
   /** Whether a character is in one of a corp role's corps or alliances. A rule listing neither matches everyone. */

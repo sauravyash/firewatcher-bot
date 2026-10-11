@@ -32,7 +32,7 @@ const MILITIA_ROLES = {
 const GUILD_KEYS = [
   'name', 'verifiedRoleId', 'corpRoles', 'allianceRoles', 'corpMemberRoleId', 'allowedCorporations',
   'allowedAlliances', ...Object.keys(MILITIA_ROLES), 'rolesFrom', 'setNicknames', 'nickFormat',
-  'verifyChannelId',
+  'verifyChannelId', 'verifyPanelChannels',
 ];
 
 const DISCORD_ID = /^\d{17,20}$/;
@@ -77,6 +77,16 @@ class Problems {
       return null;
     }
     return value;
+  }
+
+  discordIds(at, obj, key) {
+    const value = obj[key] ?? [];
+    if (!Array.isArray(value) && typeof value !== 'string') {
+      this.add(at, `${key} must be a list of Discord ids, e.g. ["123456789012345678"]`);
+      return new Set();
+    }
+    const list = Array.isArray(value) ? value : idList(value);
+    return new Set(list.map((v, i) => this.discordId(at, { [`${key}[${i}]`]: v }, `${key}[${i}]`)).filter(Boolean));
   }
 
   eveId(at, value) {
@@ -190,6 +200,8 @@ function guildConfig(guildId, raw, where, p) {
 
     // Optional: messages here from members with no linked character get a reply with the verify button.
     verifyChannelId: p.discordId(where, raw, 'verifyChannelId', optional),
+    // Optional: channels where the verify panel is kept as the latest message.
+    verifyPanelChannels: p.discordIds(where, raw, 'verifyPanelChannels'),
   };
 }
 
@@ -232,6 +244,7 @@ function guildFromEnv() {
     setNicknames: env('SET_NICKNAMES'),
     nickFormat: env('NICK_FORMAT'),
     verifyChannelId: env('VERIFY_CHANNEL_ID'),
+    verifyPanelChannels: env('VERIFY_PANEL_CHANNELS'),
   };
   const p = new Problems();
   const guild = guildConfig(guildId, raw, '.env', p);

@@ -4,7 +4,14 @@ import { Store } from './db.js';
 import { EveClient } from './eve.js';
 import { Verifier } from './verifier.js';
 import { startWebServer } from './web.js';
-import { commandData, handleInteraction, remindUnverified, welcomeMember } from './commands.js';
+import {
+  commandData,
+  handleInteraction,
+  keepPanelAtBottom,
+  refreshAllPanels,
+  remindUnverified,
+  welcomeMember,
+} from './commands.js';
 import { RoleManager, manageRolesCommand } from './panel.js';
 
 // GuildMembers (privileged: enable "Server Members Intent" in the Developer Portal) is only for join
@@ -32,6 +39,7 @@ client.once(Events.ClientReady, async (c) => {
     }
   }
   startWebServer(deps);
+  refreshAllPanels(c, deps);
 
   // Sync once at startup so role changes in the settings reach every linked member without waiting.
   verifier.syncAll().catch((err) => console.error('Startup sync failed:', err));
@@ -57,6 +65,7 @@ client.on(Events.GuildMemberAdd, (member) => {
 
 client.on(Events.MessageCreate, (message) => {
   remindUnverified(message, deps).catch((err) => console.error('Verify channel reminder failed:', err.message));
+  keepPanelAtBottom(message, deps);
 });
 
 client.login(config.discordToken).catch((err) => {

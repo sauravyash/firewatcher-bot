@@ -77,15 +77,21 @@ function verifyMessage(title, description) {
 
 const PANEL_TITLE = 'Verify your EVE character';
 
-/** The shared message staff post with /post-verify. */
+/**
+ * The shared message staff post with /post-verify, also kept at the bottom of verifyPanelChannels. Sent
+ * silently (like @silent), so reposts don't push notifications; the channel still shows as unread.
+ */
 function verifyPanel() {
-  return verifyMessage(
-    PANEL_TITLE,
-    'Click **Verify with EVE Online** to link your character. You get a private login link that only ' +
-      "you can see. Log in on EVE Online's own site and pick your character, and your roles and " +
-      'nickname are set automatically.\n\n' +
-      'Have alts? Click again for each one. You can also use `/verify` anywhere.',
-  );
+  return {
+    ...verifyMessage(
+      PANEL_TITLE,
+      'Click **Verify with EVE Online** to link your character. You get a private login link that only ' +
+        "you can see. Log in on EVE Online's own site and pick your character, and your roles and " +
+        'nickname are set automatically.\n\n' +
+        'Have alts? Click again for each one. You can also use `/verify` anywhere.',
+    ),
+    flags: MessageFlags.SuppressNotifications,
+  };
 }
 
 /**

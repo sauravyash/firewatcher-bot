@@ -68,9 +68,9 @@ clicked.
 
 `verifyPanelChannels` (optional): a list of channels where the bot keeps the verify panel (the same
 message as `/post-verify`) as the latest message. Once a channel has been quiet for 5 seconds, the
-bot reposts the panel at the bottom and deletes the older copy. At startup it tidies each of these
-channels the same way. It needs View Channel, Send Messages, Embed Links and Read Message History
-there.
+bot reposts the panel at the bottom and deletes the older copy. Panels are sent silently (like
+`@silent`), so reposts don't send notifications. At startup it tidies each of these channels the
+same way. It needs View Channel, Send Messages, Embed Links and Read Message History there.
 
 - **Discord ids** (server and role ids) must be **in quotes**. They're too long for plain JSON
   numbers, which would round them.

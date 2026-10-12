@@ -21,7 +21,8 @@
       "rolesFrom": "any",
       "setNicknames": true,
       "nickFormat": "[{corp}] {name}",
-      "verifyChannelId": "888888888888888888"
+      "verifyChannelId": "888888888888888888",
+      "verifyPanelChannels": ["888888888888888888"]
     },
     "666666666666666666": {
       "name": "Coalition server",

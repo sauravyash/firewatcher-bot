@@ -75,10 +75,12 @@ function verifyMessage(title, description) {
   };
 }
 
+const PANEL_TITLE = 'Verify your EVE character';
+
 /** The shared message staff post with /post-verify. */
 function verifyPanel() {
   return verifyMessage(
-    'Verify your EVE character',
+    PANEL_TITLE,
     'Click **Verify with EVE Online** to link your character. You get a private login link that only ' +
       "you can see. Log in on EVE Online's own site and pick your character, and your roles and " +
       'nickname are set automatically.\n\n' +
@@ -145,6 +147,56 @@ export async function remindUnverified(message, { store, verifier }) {
         'are set automatically.',
     ),
   );
+}
+
+// Channel id → pending panel move. Moves wait for the channel to go quiet, so a conversation moves the
+// panel once rather than after every message.
+const panelTimers = new Map();
+const PANEL_DELAY_MS = 5_000;
+
+const isPanel = (message) => message.author.id === message.client.user.id && message.embeds[0]?.title === PANEL_TITLE;
+
+/** Keeps the verify panel the latest message in a server's verifyPanelChannels. */
+export function keepPanelAtBottom(message, { verifier }) {
+  if (!message.inGuild() || isPanel(message)) return;
+  if (!verifier.guilds.get(message.guildId)?.verifyPanelChannels.has(message.channelId)) return;
+  schedulePanel(message.channel, PANEL_DELAY_MS);
+}
+
+/** At startup, puts the panel at the bottom of every panel channel (it may have moved while the bot was down). */
+export async function refreshAllPanels(client, { verifier }) {
+  for (const guildConfig of verifier.guilds.values()) {
+    for (const channelId of guildConfig.verifyPanelChannels) {
+      try {
+        schedulePanel(await client.channels.fetch(channelId), 0);
+      } catch (err) {
+        console.error(`Couldn't open verify panel channel ${channelId} in ${guildConfig.name}: ${err.message}`);
+      }
+    }
+  }
+}
+
+function schedulePanel(channel, delay) {
+  clearTimeout(panelTimers.get(channel.id));
+  panelTimers.set(
+    channel.id,
+    setTimeout(() => {
+      panelTimers.delete(channel.id);
+      movePanel(channel).catch((err) => console.error(`Couldn't move the verify panel in #${channel.name}: ${err.message}`));
+    }, delay),
+  );
+}
+
+/** Posts a fresh panel unless the latest message already is one, then deletes the older copies. */
+async function movePanel(channel) {
+  const recent = [...(await channel.messages.fetch({ limit: 50 })).values()].sort(
+    (a, b) => b.createdTimestamp - a.createdTimestamp,
+  );
+  const panels = recent.filter(isPanel);
+  let stale = panels;
+  if (recent[0] && isPanel(recent[0])) stale = panels.slice(1);
+  else await channel.send(verifyPanel());
+  await Promise.all(stale.map((m) => m.delete().catch(() => {})));
 }
 
 export async function handleInteraction(interaction, { store, eve, verifier, roleManager, config }) {

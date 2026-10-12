@@ -66,6 +66,12 @@ them. It needs View Channel, Send Messages, Embed Links and Read Message History
 public, so it carries the button, not a login link; each click still gets a private link for whoever
 clicked.
 
+`verifyPanelChannels` (optional): a list of channels where the bot keeps the verify panel (the same
+message as `/post-verify`) as the latest message. Once a channel has been quiet for 5 seconds, the
+bot reposts the panel at the bottom and deletes the older copy. At startup it tidies each of these
+channels the same way. It needs View Channel, Send Messages, Embed Links and Read Message History
+there.
+
 - **Discord ids** (server and role ids) must be **in quotes**. They're too long for plain JSON
   numbers, which would round them.
 - **EVE ids** (corps, alliances) are plain numbers. They're the number in the zKillboard or EVE Who URL.

@@ -1,6 +1,8 @@
 import { DatabaseSync } from 'node:sqlite';
 
 const PENDING_TTL_SECONDS = 10 * 60;
+// Unfinished logins stay around this long (after the link stops working) so we can see who tried to verify.
+const PENDING_KEEP_SECONDS = 24 * 60 * 60;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS characters (
@@ -71,7 +73,7 @@ export class Store {
   // --- SSO login state (ties an EVE login back to the Discord user who asked for it) ---
 
   addPending(state, discordId) {
-    this.db.prepare('DELETE FROM pending_logins WHERE created_at < ?').run(now() - PENDING_TTL_SECONDS);
+    this.db.prepare('DELETE FROM pending_logins WHERE created_at < ?').run(now() - PENDING_KEEP_SECONDS);
     this.db
       .prepare('INSERT INTO pending_logins (state, discord_id, created_at) VALUES (?, ?, ?)')
       .run(state, discordId, now());

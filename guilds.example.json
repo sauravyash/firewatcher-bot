@@ -18,6 +18,8 @@
       "caldariRoleId": null,
       "gallenteRoleId": null,
       "minmatarRoleId": null,
+      "guristasRoleId": null,
+      "angelRoleId": null,
       "rolesFrom": "any",
       "setNicknames": true,
       "nickFormat": "[{corp}] {name}",

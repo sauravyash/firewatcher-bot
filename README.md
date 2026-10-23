@@ -54,6 +54,7 @@ Start from [guilds.example.json](guilds.example.json):
 | `amarrMilitiaRoleId` | Members with a character whose corp is enlisted with the **Amarr or Caldari** militia |
 | `gallenteMilitiaRoleId` | Members with a character whose corp is enlisted with the **Gallente or Minmatar** militia |
 | `amarrRoleId`, `caldariRoleId`, `gallenteRoleId`, `minmatarRoleId` | Members with a character whose corp is enlisted with that one faction's militia |
+| `guristasRoleId`, `angelRoleId` | Members with a character enlisted with the **Guristas Pirates** or **Angel Cartel** in pirate faction warfare |
 | `corpMemberRoleId` + `allowedCorporations` / `allowedAlliances` | The original single corp member role. With both lists empty, every verified character qualifies |
 
 Other per-server fields: `name` (a label for logs), `rolesFrom` (`"any"` or `"main"`, see
@@ -92,7 +93,8 @@ Militia roles are separate from the corp roles, so a member can hold both, and a
 outside your corp get a militia role too. Militia membership comes from the character's public
 `faction_id` in ESI, so pilots who enlist on their own inside a player corp count. If the character
 has none, the corp's `faction_id` is used (enlisted corps and NPC militia corps like 24th Imperial
-Crusade or Federal Defense Union). No extra EVE permissions are needed.
+Crusade or Federal Defense Union, or the pirate ones for Guristas and Angel Cartel). No extra EVE
+permissions are needed.
 
 **Single server without a file:** leave `GUILDS_FILE` empty and set `GUILD_ID`, `VERIFIED_ROLE_ID`
 and the other role variables in `.env` instead (see [.env.example](.env.example)). `allianceRoles`

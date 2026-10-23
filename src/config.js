@@ -13,11 +13,14 @@ function idList(value) {
     .filter(Boolean);
 }
 
-// EVE faction ids. Faction warfare pairs them into two warzone sides.
+// EVE faction ids. Faction warfare pairs the empires into two warzone sides; the pirate factions
+// fight the empires on their own.
 const CALDARI_STATE = 500001;
 const MINMATAR_REPUBLIC = 500002;
 const AMARR_EMPIRE = 500003;
 const GALLENTE_FEDERATION = 500004;
+const GURISTAS_PIRATES = 500010;
+const ANGEL_CARTEL = 500011;
 
 // Settings key → the militia factions that earn that role.
 const MILITIA_ROLES = {
@@ -27,6 +30,8 @@ const MILITIA_ROLES = {
   caldariRoleId: [CALDARI_STATE],
   gallenteRoleId: [GALLENTE_FEDERATION],
   minmatarRoleId: [MINMATAR_REPUBLIC],
+  guristasRoleId: [GURISTAS_PIRATES],
+  angelRoleId: [ANGEL_CARTEL],
 };
 
 const GUILD_KEYS = [
@@ -240,6 +245,8 @@ function guildFromEnv() {
     caldariRoleId: env('CALDARI_FACTION_ROLE_ID'),
     gallenteRoleId: env('GALLENTE_FACTION_ROLE_ID'),
     minmatarRoleId: env('MINMATAR_FACTION_ROLE_ID'),
+    guristasRoleId: env('GURISTAS_FACTION_ROLE_ID'),
+    angelRoleId: env('ANGEL_FACTION_ROLE_ID'),
     rolesFrom: env('ROLES_FROM'),
     setNicknames: env('SET_NICKNAMES'),
     nickFormat: env('NICK_FORMAT'),
